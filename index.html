@@ -330,7 +330,7 @@ function toDate(v){
 }
 function build(grid){
   var hi=-1;for(var i=0;i<Math.min(grid.length,10);i++){if(grid[i].join("|").indexOf("كود البوليصه")>-1||grid[i].join("|").indexOf("كود البوليصة")>-1){hi=i;break}}
-  if(hi<0)throw new Error("لم أجد عمود كود البوليصه. أول صفوف وصلت: "+grid.slice(0,3).map(function(r){return"["+r.slice(0,12).join(" | ")+"]"}).join(" ← ")+" — عدد الصفوف: "+grid.length);
+  if(hi<0)throw new Error("لم أجد عمود كود البوليصه. أول صفوف وصلت: "+"العناوين (كل الأعمدة): ["+(grid[0]||[]).map(function(c,i){return(i+1)+"="+c}).join(" | ")+"]"+" — عدد الصفوف: "+grid.length);
   var H=grid[hi].map(function(x){return String(x==null?"":x).trim()});
   function ix(){for(var a=0;a<arguments.length;a++){var j=H.indexOf(arguments[a]);if(j>-1)return j}return-1}
   var c={date:ix("تاريخ السحب"),code:ix("كود البوليصه","كود البوليصة"),rep:ix("اسم المندوب"),branch:ix("الفرع"),acct:ix("اسم الاكونت"),status:ix("حاله الشحنه","حالة الشحنة"),fin:ix("حالة الشحنه النهائيه","حالة الشحنة النهائية"),note:ix("ملاحظات"),final:ix("الحالة النهائية"),sol:ix("نوع الحل"),ops:ix("رد العمليات")};
