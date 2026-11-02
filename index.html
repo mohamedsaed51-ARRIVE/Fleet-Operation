@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>داش بورد Fleet Operation</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: RTL ops console — slim header, filter strip, KPI row, chart grid, data-quality panel, detail table */
+:root{
+  --bg:#f4f6f8; --surface:#ffffff; --ink:#16212b; --muted:#5d6b78; --line:#dbe2e8;
+  --accent:#0b6e8a; --accent-soft:#d7edf3; --bar:#0b6e8a; --bar2:#7aa6b5;
+  --warn:#b45309; --warn-soft:#fdecd2; --bad:#b42318; --bad-soft:#fde2df; --ok:#157f4b; --ok-soft:#dcf3e6;
+  --font:'IBM Plex Sans Arabic','Segoe UI',Tahoma,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1519; --surface:#172027; --ink:#e6edf2; --muted:#93a3b0; --line:#2a3741;
+  --accent:#58b8d2; --accent-soft:#16333d; --bar:#58b8d2; --bar2:#3f7587;
+  --warn:#f0a649; --warn-soft:#3a2a12; --bad:#f08a80; --bad-soft:#40201d; --ok:#5fd09a; --ok-soft:#173326; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --surface:#172027; --ink:#e6edf2; --muted:#93a3b0; --line:#2a3741;
+  --accent:#58b8d2; --accent-soft:#16333d; --bar:#58b8d2; --bar2:#3f7587;
+  --warn:#f0a649; --warn-soft:#3a2a12; --bad:#f08a80; --bad-soft:#40201d; --ok:#5fd09a; --ok-soft:#173326; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.6;
+  padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between}
+h1{font-size:22px;margin:0;font-weight:700;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.btn{font-family:inherit;font-size:13px;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--bg);padding:8px 14px;border-radius:6px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.banner{padding:10px 14px;border-radius:6px;background:var(--warn-soft);color:var(--warn);font-weight:600;font-size:13px}
+.banner.live{background:var(--ok-soft);color:var(--ok)}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.filters label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:150px;flex:1 1 150px}
+select,input[type=search]{font-family:inherit;font-size:13px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi .n{font-size:11.5px;color:var(--muted)}
+.kpi.warn .v{color:var(--warn)} .kpi.bad .v{color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.card h2{font-size:15px;margin:0 0 2px}
+.card .h{font-size:12px;color:var(--muted);margin-bottom:10px}
+.row{display:grid;grid-template-columns:minmax(90px,170px) 1fr 74px;gap:8px;align-items:center;padding:3px 0;font-size:13px}
+.row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track{background:var(--bg);height:14px;border-radius:3px;overflow:hidden}
+.fill{height:100%;background:var(--bar);border-radius:3px}
+.row.clickable{cursor:pointer}
+.row.clickable:hover .nm{color:var(--accent)}
+.val{font-variant-numeric:tabular-nums;text-align:left;direction:ltr;color:var(--muted);font-size:12px}
+.val b{color:var(--ink)}
+.dq{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.dq div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding:4px 0}
+.pill{display:inline-block;padding:0 8px;border-radius:10px;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.ok{background:var(--ok-soft);color:var(--ok)}
+.tablewrap{overflow:auto;max-height:480px;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:12.5px}
+th,td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--line);vertical-align:top}
+th{position:sticky;top:0;background:var(--surface);color:var(--muted);font-weight:600;z-index:1}
+td.num{font-variant-numeric:tabular-nums}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+.tools input{max-width:320px}
+.foot{color:var(--muted);font-size:12px}
+.empty{color:var(--muted);padding:10px 0}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>داش بورد Fleet Operation</h1>
+      <div class="sub" id="sub"></div>
+    </div>
+    <div>
+      <input type="file" id="file" accept=".csv,.xlsx,.xls" hidden>
+      <button class="btn" id="up">رفع ملف الشيت (CSV / Excel)</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner"></div>
+
+  <section class="filters" aria-label="الفلاتر">
+    <label>الفرع<select id="fBranch"></select></label>
+    <label>الاكونت<select id="fAcct"></select></label>
+    <label>حالة الشحنة<select id="fStatus"></select></label>
+    <button class="btn ghost" id="reset">إعادة ضبط</button>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="grid">
+    <div class="card"><h2>الشحنات حسب الفرع</h2><div class="h">اضغط على فرع لتصفية الداش بورد</div><div id="cBranch"></div></div>
+    <div class="card"><h2>أسباب التعثر</h2><div class="h">من عمود "حالة الشحنة"</div><div id="cStatus"></div></div>
+    <div class="card"><h2>أعلى الاكونتات</h2><div class="h">أعلى 10 حسب عدد الشحنات</div><div id="cAcct"></div></div>
+    <div class="card"><h2>أعلى المناديب</h2><div class="h">أعلى 10 حسب عدد الشحنات</div><div id="cRep"></div></div>
+  </section>
+
+  <section class="card">
+    <h2>الفرع × سبب التعثر</h2>
+    <div class="h">عدد الشحنات، ونسبة سببي الاتصال (لا يرد / مغلق) من إجمالي الفرع</div>
+    <div class="tablewrap"><table id="matrix"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>مراجعة جودة البيانات</h2>
+    <div class="h">فحوصات على البيانات المعروضة حاليًا بعد الفلاتر</div>
+    <div class="dq" id="dq"></div>
+  </section>
+
+  <section class="card">
+    <h2>تفاصيل الشحنات</h2>
+    <div class="tools">
+      <input type="search" id="q" placeholder="بحث بكود البوليصة أو المندوب أو الاكونت أو الملاحظات">
+      <span class="foot" id="cnt"></span>
+    </div>
+    <div class="tablewrap"><table id="detail"></table></div>
+  </section>
+
+  <div class="foot" id="note"></div>
+</div>
+
+<script>
+// ---------- Sample (first 76 rows read from the sheet tab "15-6"; all with pull date 6/13/2026) ----------
+var ST=["العميل لا يرد","التليفون مغلق باستمرار","العميل بيكنسل","-عنوان غير واضح","مؤجل من المرسل اليه"];
+var BR={n:"فرع مدينة نصر",t:"فرع طنطا",h:"فرع حدائق القبه",r:"فرع الهرم",s:"فرع الشروق",m:"فرع المؤسسه",d:"فرع المعادي",a:"فرع الاسكندرية",i:"فرع الاسماعيليه",g:"فرع العجوزه",o:"فرع اكتوبر"};
+var AC={dija:"Dija - ديجا",mk:"مكسب New - نيو maksab",gg:"Gogoo - جوجو",ev:"Every thing-ايفري ثينج",so:"Soter - سوتير",tw:"Twear - تي وير",nf:"Nona Fashion - نونا فاشون",xg:"X-GO Express - اكس جواكسبرييس",vs:"Vitamin Soap - فيتامين سوب",ec:"E-commerce_اي كومرس",cr:"Creativo - كرياتيفو",as:"Ashtarayt-اشتريت",rf:"Reform-ريفورم",eh:"ELHAMD October -الحمد اكتوبر",iz:"ايزيس-ezzis",bb:"Babys fashion - بيبي فاشون",ts:"تيشرتات نص كوم -tishirt nos kom",cn:"CAN NELLA - كان نيلا",aa:"AAS - ايه ايه اس",md:"ماديوس شوب Madyos shop",nl:"Noula - نولا",ms:"ام اند اس M andd S",cv:"Civa - سيفا",kv:"KIDZVILLA - كيدز فيلا",tl:"tools-تولز",st54:"استوديو Studio _54",dl:"ديلوس-deluce eg",jm:"Jamaal - جمال",bl:"Baleine",ek:"اخوان عثماني للملابس الداخليه - ekhwan osman",mg:"Mega - ميجا",km:"كراميش كيدز - Karamesh Kids",ln:"لاينز-لينز",fk:"فكرة - Fekra",sts:"STS-اس تي اس",ay:"ايه شوب - aya shop",ri:"Richie",yo:"YOOSI FASHION",sh:"شوبينجو - shoppingoo",ed:"Edge Sportswear - ايدج سبورت وير"};
+var R=[
+["RV841525792","محمد جمال عبدالحفيظ(مدينه نصر)","n","dija",0,"العميل متاح للاستلام"],
+["RV150439430","Mohamed Ali","t","mk",0,"العميل متاح للاستلام"],
+["RV341833095","Mahmoud Mohammed","h","gg",0,"العميل متاح للاستلام"],
+["ARV79347194","حسن احمد محمد(فرع حدائق القبه)","h","ev",0,"العميل متاح للاستلام وتم تغيير العنوان ل فايد عند الموقف الجديد..."],
+["AV134310810","Mahmoud Mohammed","h","so",0,"العميل متاح للاستلام"],
+["RV8441112931","احمد محمد جمال(الهرم)","r","tw",3,"العميل متاح للاستلام اي يوم ما عدا السبت من 9 صباحا ل 5 مساءا..."],
+["RV341833098","احمد محمد جمال(الهرم)","r","gg",0,"العميل متاح للاستلام"],
+["ARV464715756","مصطفي امين محمود (فرع الهرم)","r","nf",0,"العميل متاح للاستلام اليوم او الغد قبل الساعه 4..."],
+["RV341833068","ابراهيم محمد ابراهيم حسين(الشروق)","s","gg",0,"العميل متاح للاستلام والتواصل واتساب"],
+["RV8441114518","Mahmoud madawy","m","tw",0,"العميل متاح للاستلام"],
+["ARV73907057","Mahmoud madawy","m","xg",0,"العميل متاح للاستلام قبل الساعه 4 مساءا"],
+["ARV4418138","السيد محمد حسين(المؤسسه)","m","vs",1,"العميل متاح ويريد الاستلام برجاء التواصل واتس اب وفون والعميل جاهز ويريد ..."],
+["RV724959426","عبدالغنى علاء عبدالغنى(المؤسسه)","m","ec",0,"العميل متاح للاستلام"],
+["RV724959348","Mahmoud madawy","m","ec",0,"العميل متاح للاستلام غدا الساعه 7 مساءا المندوب يتصل قبل ما يروح..."],
+["ARV63031250","Mahmoud madawy","m","cr",0,"العميل متاح للاستلام"],
+["ARV655619212","حسام ابراهيم (المعادي)","d","as",2,"العميل متاح للاستلام"],
+["ARV63031242","Mahmoud madawy","m","cr",0,"العميل متاح للاستلام"],
+["RV8441114411","حسام ابراهيم (المعادي)","d","tw",0,"العميل متاح للاستلام"],
+["RV203311829","عبدالرحمن ابراهيم فؤاد(التجمع)","n","rf",1,"بكره"],
+["ARV848415","Ahmed abdulsalam","t","eh",2,"متاح الاستلام"],
+["ARV73293007","محمود احمد حماد(دمياط)","t","iz",1,"متاح الاستلام"],
+["RV598117521","Mohamed Badr","a","bb",0,"تم حل المشكلة - C"],
+["RV150438678","Moaz mohamed fathalla","a","mk",0,"متاح الاستلام"],
+["ARV125821334","ناجى محمد ابراهيم(الاسكندريه)","a","ts",3,"متاح الاستلام"],
+["RV8441111286","محمد حسن ابراهيم(الاسماعيليه)","i","tw",1,"متاح الاستلام"],
+["ARV373515937","محمد حسن ابراهيم(الاسماعيليه)","i","cn",2,"مشكله ف التسليم"],
+["RV28413354","عمرو صلاح احمد (الشروق)","s","aa",0,"تم حل المشكلة - P"],
+["RV724957078","عمرو صلاح احمد (الشروق)","s","ec",0,"متاح الاستلام"],
+["ARV1751174","عبدالرحمن محمد سيد عبدالله (فرع الشروق)","s","md",1,"تم حل المشكلة - P"],
+["ARV6303532","mohamed khaled mohamed","g","cr",4,"متاح الاستلام"],
+["ARV655618918","عمار محمد عبدالله(فرع العجوزه)","g","as",1,"متاح الاستلام"],
+["ARV6303751","حسام ابراهيم (المعادي)","d","cr",0,"متاح الاستلام"],
+["ARV6158959730","محمد عبدالخالق محمد","d","nl",1,"تاجيل بكره"],
+["RV5152222231080","وائل علي(فرع المعادي)","d","ms",2,"متاح الاستلام"],
+["ARV0261197","Hadeer Saeed","o","cv",3,"تم توضيح العنوان ومتاحه للاستلام بكره"],
+["AV617967589","ياسين محمد مختار(اكتوبر)","o","kv",0,"متاح للاستلام بعد الساعه 5ونص"],
+["ARV479112397","Ramy Radwan","a","tl",0,"تم حل المشكلة - P/متاح للاستلام التواصل والتنسيق..."],
+["RV937926144","Ahmed khaled","i","st54",0,"تم حل المشكلة - C"],
+["ARV63031288","Mahmoud Mohammed","h","cr",0,"متاح للاستلام"],
+["RV8441114615","صلاح عبدالرحمن حسن(الاسماعيليله)","i","tw",1,"متاح للاستلام"],
+["AV7759247893","احمد حسين توفيق(حدائق القبه)","h","dl",2,"متاح للاستلام بعد 5م"],
+["ARV479112342","احمد سمير محمود اسماعيل (فرع الهرم)","r","tl",0,"تم حل المشكلة - P"],
+["RV5152222231320","عبده سمير عبده علي (فرع الهرم)","r","ms",1,"متاح للاستلام"],
+["ARV464715492","محمد سعيد سليمان(العجوزه)","g","nf",1,"تم حل المشكلة - P"],
+["AV7759248085","احمد سمير محمود اسماعيل (فرع الهرم)","r","dl",0,"متاح للاستلام بكره"],
+["RV8441114508","مصطفى بهاء امين(العجوزه)","g","tw",0,"متاح للاستلام"],
+["AV617967579","Adham Ataf","m","kv",0,"متاح للاستلام يوم التلات القادم"],
+["ARV8058185","حسام ابراهيم (المعادي)","d","jm",1,"العميل بلغ تاجيل لغدا"],
+["RV5152222230948","محمد فايد محمد (المعادى)","d","ms",0,"متاح للاستلام بكره"],
+["RV23131119","Ahmed wajiya","d","bl",3,"تم توضيح العنوان فى المريوطيه"],
+["RV724958769","Adham Ataf","m","ec",1,"متاح للاستلام"],
+["MR23603003","احمد شريف حنفي (فرع المؤسسه)","m","ek",0,"متاح للاستلام"],
+["ARV17982253","Mohamed yasser","m","mg",0,"متاح للاستلام المندوب يتواصل وينسق مع العميله قبلها..."],
+["RV8441113957","Mohamed yasser","m","tw",0,"متاح للاستلام"],
+["ARV63916941","حازم مصطفى عبدالرحمن(التجمع)","n","km",0,"متاحة للاستلام"],
+["RV341833323","هانى عبدالكريم احمد(التجمع)","n","gg",0,"متاحة للاستلام"],
+["ARV34801084","Gerges Morkos","h","ln",0,"متاحة للاستلام"],
+["RV150439579","Moaz mohamed fathalla","a","mk",1,"متاحة للاستلام"],
+["ARV982325777","ناجى محمد ابراهيم(الاسكندريه)","a","fk",1,"متاحة للاستلام"],
+["ARV982326246","محمد مجدى حلمى(حدائق القبه)","h","fk",2,"متاحة للاستلام بكرة"],
+["ARV17982306","خالد محمد خضرى(حدائق القبه)","h","mg",0,"متاحة للاستلام"],
+["ARV457611104","Gerges Morkos","h","sts",0,"رد ومتاح للتواصل"],
+["RV724959756","Gerges Morkos","h","ec",0,"متاح للاستلام"],
+["RV724959682","احمد حسين توفيق(حدائق القبه)","h","ec",0,"متاح للاستلام"],
+["RV724959580","Mahmoud Mohammed","h","ec",1,"متاح للاستلام"],
+["RV22018333","احمد عبدالوهاب عوض(بورسعيد)","i","ay",0,"متاحة للاستلام بكرة"],
+["ARV06531524","محازم مجاهد سالم(الهرم)","r","ri",0,"متاحة للاستلام"],
+["ARV9030243","Hassan ahmed","s","yo",0,"متاحة للاستلام"],
+["RV724958676","ابراهيم محمد ابراهيم حسين(الشروق)","s","ec",0,"متاح للاستلام"],
+["RV8441114587","mohamed khaled mohamed","g","tw",0,"متاح للاستلام"],
+["AV7759248106","mohamed khaled mohamed","g","dl",0,"متاح للاستلام"],
+["RV724958613","mohamed khaled mohamed","g","ec",0,"متاحة للاستلام"],
+["ARV6158960363","mohamed khaled mohamed","g","nl",0,"متاحة للاستلام"],
+["ARV50321396","Mahmoud madawy","m","sh",0,"متاحة للاستلام"],
+["ARV63031338","Mahmoud madawy","m","cr",1,"متاحة للاستلام"],
+["ARV5254499","Adham Ataf","m","ed",3,"العميلة متاحة للاستلام وتم توضيح العنوان ل دمياط الجديدة اخر شارع الصعيدي..."]
+];
+var SAMPLE=R.map(function(x){return{date:new Date(2026,5,13),code:x[0],rep:x[1],branch:BR[x[2]],acct:AC[x[3]],status:ST[x[4]],finalShip:"قيد التشغيل",note:x[5],final:"تم الرد",sol:"جاهز للإستلام اليوم أو غدا",ops:""}});
+
+// ---------- State ----------
+var DATA=SAMPLE, isLive=false, srcName="عيّنة من تاب 15-6", F={branch:"",acct:"",status:""}, Q="";
+var $=function(id){return document.getElementById(id)};
+var CONTACT=["العميل لا يرد","التليفون مغلق باستمرار"];
+var TODAY=new Date(); TODAY=new Date(TODAY.getFullYear(),TODAY.getMonth(),TODAY.getDate());
+
+function fmt(n){return n.toLocaleString("en-US")}
+function pct(a,b){return b?(a/b*100).toFixed(1)+"%":"—"}
+function ageDays(d){return d?Math.round((TODAY-d)/864e5):null}
+function dstr(d){return d?d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear():""}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function countBy(rows,fn){var m={};rows.forEach(function(r){var k=fn(r)||"(فارغ)";m[k]=(m[k]||0)+1});return Object.keys(m).map(function(k){return[k,m[k]]}).sort(function(a,b){return b[1]-a[1]})}
+function filtered(){return DATA.filter(function(r){return(!F.branch||r.branch===F.branch)&&(!F.acct||r.acct===F.acct)&&(!F.status||r.status===F.status)})}
+
+// ---------- Rendering ----------
+function bars(el,entries,total,key,limit){
+  entries=limit?entries.slice(0,limit):entries;
+  if(!entries.length){el.innerHTML='<div class="empty">لا توجد بيانات</div>';return}
+  var max=entries[0][1];
+  el.innerHTML=entries.map(function(e){
+    var on=key&&F[key]===e[0];
+    return '<div class="row'+(key?' clickable':'')+'" data-k="'+esc(e[0])+'" title="'+esc(e[0])+'"><span class="nm"'+(on?' style="color:var(--accent);font-weight:700"':'')+'>'+esc(e[0])+'</span><span class="track"><span class="fill" style="display:block;width:'+(e[1]/max*100)+'%"></span></span><span class="val"><b>'+fmt(e[1])+'</b> · '+pct(e[1],total)+'</span></div>'}).join("");
+  if(key)el.querySelectorAll(".row").forEach(function(n){n.onclick=function(){var k=n.getAttribute("data-k");F[key]=F[key]===k?"":k;sync();render()}});
+}
+function opts(sel,vals,cur,all){sel.innerHTML='<option value="">'+all+'</option>'+vals.map(function(v){return'<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>'}).join("")}
+function sync(){
+  opts($("fBranch"),countBy(DATA,function(r){return r.branch}).map(function(e){return e[0]}).sort(),F.branch,"كل الفروع");
+  opts($("fAcct"),countBy(DATA,function(r){return r.acct}).map(function(e){return e[0]}).sort(),F.acct,"كل الاكونتات");
+  opts($("fStatus"),countBy(DATA,function(r){return r.status}).map(function(e){return e[0]}),F.status,"كل الحالات");
+}
+function render(){
+  var rows=filtered(), n=rows.length;
+  $("sub").textContent="المصدر: "+srcName+" · تاريخ الحساب: "+dstr(TODAY);
+  var b=$("banner");
+  if(isLive){b.className="banner live";b.textContent="بيانات كاملة من الملف المرفوع: "+fmt(DATA.length)+" سجل"}
+  else{b.className="banner";b.textContent="تنبيه: الأرقام الحالية من عيّنة "+fmt(DATA.length)+" صف فقط من أصل 143 صف في الشيت. ارفع ملف التاب (CSV أو Excel) لتحديث الداش بورد على كل البيانات."}
+
+  var uniq=new Set(rows.map(function(r){return r.code})).size;
+  var contact=rows.filter(function(r){return CONTACT.indexOf(r.status)>-1}).length;
+  var cancel=rows.filter(function(r){return r.status==="العميل بيكنسل"}).length;
+  var addr=rows.filter(function(r){return/عنوان/.test(r.status)}).length;
+  var ages=rows.map(function(r){return ageDays(r.date)}).filter(function(x){return x!=null});
+  var oldest=ages.length?Math.max.apply(null,ages):null;
+  var noOps=rows.filter(function(r){return!String(r.ops||"").trim()}).length;
+  var k=[
+   ["إجمالي السجلات",fmt(n),"بوليصات فريدة: "+fmt(uniq),""],
+   ["الفروع / المناديب",fmt(new Set(rows.map(function(r){return r.branch})).size)+" / "+fmt(new Set(rows.map(function(r){return r.rep})).size),"أسماء المناديب كما وردت في الشيت",""],
+   ["تعثر بسبب الاتصال",pct(contact,n),fmt(contact)+" شحنة (لا يرد + مغلق)",contact/(n||1)>.6?"bad":"warn"],
+   ["العميل بيكنسل",pct(cancel,n),fmt(cancel)+" شحنة",""],
+   ["عنوان غير واضح",pct(addr,n),fmt(addr)+" شحنة",""],
+   ["أقدم سجل (يوم)",oldest==null?"—":fmt(oldest),"من تاريخ السحب حتى اليوم",oldest>30?"bad":""],
+   ["بدون رد العمليات",pct(noOps,n),fmt(noOps)+" سجل",noOps/(n||1)>.5?"warn":""]
+  ];
+  $("kpis").innerHTML=k.map(function(x){return'<div class="kpi '+x[3]+'"><div class="l">'+x[0]+'</div><div class="v">'+x[1]+'</div><div class="n">'+x[2]+'</div></div>'}).join("");
+
+  bars($("cBranch"),countBy(rows,function(r){return r.branch}),n,"branch");
+  bars($("cStatus"),countBy(rows,function(r){return r.status}),n,"status");
+  bars($("cAcct"),countBy(rows,function(r){return r.acct}),n,"acct",10);
+  bars($("cRep"),countBy(rows,function(r){return r.rep}),n,null,10);
+
+  // matrix
+  var sts=countBy(rows,function(r){return r.status}).map(function(e){return e[0]});
+  var brs=countBy(rows,function(r){return r.branch}).map(function(e){return e[0]});
+  var h='<thead><tr><th>الفرع</th>'+sts.map(function(s){return'<th>'+esc(s)+'</th>'}).join("")+'<th>الإجمالي</th><th>نسبة الاتصال</th></tr></thead><tbody>';
+  brs.forEach(function(br){
+    var sub=rows.filter(function(r){return r.branch===br}), c=sub.filter(function(r){return CONTACT.indexOf(r.status)>-1}).length;
+    h+='<tr><td>'+esc(br)+'</td>'+sts.map(function(s){var v=sub.filter(function(r){return r.status===s}).length;return'<td class="num">'+(v||"")+'</td>'}).join("")+'<td class="num"><b>'+sub.length+'</b></td><td class="num">'+pct(c,sub.length)+'</td></tr>'});
+  $("matrix").innerHTML=h+'</tbody>';
+
+  // data quality
+  var codes={};rows.forEach(function(r){codes[r.code]=(codes[r.code]||0)+1});
+  var dup=Object.keys(codes).filter(function(c){return codes[c]>1}).length;
+  var conflict=rows.filter(function(r){return r.status==="العميل بيكنسل"&&/متاح/.test(r.note||"")}).length;
+  var badDate=rows.filter(function(r){return!r.date}).length;
+  var finals=new Set(rows.map(function(r){return r.finalShip})).size;
+  var dq=[
+   ["بوليصات مكررة",dup,dup?"bad":"ok"],
+   ["تاريخ سحب غير صالح أو فارغ",badDate,badDate?"bad":"ok"],
+   ["رد العمليات فارغ",noOps+" من "+n,noOps?"warn":"ok"],
+   ["تعارض: بيكنسل مع ملاحظة «متاح»",conflict,conflict?"warn":"ok"],
+   ["قيم مختلفة في «حالة الشحنة النهائية»",finals,finals>1?"warn":"ok"],
+   ["عدد أسماء المناديب المختلفة",new Set(rows.map(function(r){return r.rep})).size,""]
+  ];
+  $("dq").innerHTML=dq.map(function(x){return'<div><span>'+x[0]+'</span><span class="pill '+x[2]+'">'+x[1]+'</span></div>'}).join("");
+
+  // detail
+  var q=Q.trim().toLowerCase();
+  var list=rows.filter(function(r){return!q||[r.code,r.rep,r.acct,r.note,r.branch].join(" ").toLowerCase().indexOf(q)>-1})
+    .sort(function(a,b){return(ageDays(b.date)||0)-(ageDays(a.date)||0)});
+  $("cnt").textContent=fmt(list.length)+" سجل";
+  $("detail").innerHTML='<thead><tr><th>تاريخ السحب</th><th>العمر (يوم)</th><th>كود البوليصة</th><th>المندوب</th><th>الفرع</th><th>الاكونت</th><th>حالة الشحنة</th><th>ملاحظات</th><th>رد العمليات</th></tr></thead><tbody>'+
+   list.map(function(r){return'<tr><td class="num">'+dstr(r.date)+'</td><td class="num">'+(ageDays(r.date)==null?"":ageDays(r.date))+'</td><td class="num" dir="ltr" style="text-align:right">'+esc(r.code)+'</td><td>'+esc(r.rep)+'</td><td>'+esc(r.branch)+'</td><td>'+esc(r.acct)+'</td><td>'+esc(r.status)+'</td><td>'+esc(r.note)+'</td><td>'+esc(r.ops)+'</td></tr>'}).join("")+'</tbody>';
+
+  $("note").textContent="طريقة الحساب: العمر = تاريخ اليوم − تاريخ السحب (بالأيام، من غير حد SOP مطبّق). نسبة الاتصال = (العميل لا يرد + التليفون مغلق باستمرار) ÷ إجمالي السجلات المعروضة. كل النسب من السجلات بعد الفلاتر.";
+}
+
+// ---------- Upload ----------
+function parseCSV(t){
+  var rows=[],r=[],c="",q=false,i=0;t=t.replace(/^﻿/,"");
+  for(;i<t.length;i++){var ch=t[i];
+    if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch=='"')q=true;
+    else if(ch==","){r.push(c);c=""}
+    else if(ch=="\n"||ch=="\r"){if(ch=="\r"&&t[i+1]=="\n")i++;r.push(c);rows.push(r);r=[];c=""}
+    else c+=ch}
+  if(c!==""||r.length){r.push(c);rows.push(r)}
+  return rows;
+}
+function toDate(v){
+  if(v instanceof Date)return new Date(v.getFullYear(),v.getMonth(),v.getDate());
+  if(typeof v==="number"&&v>20000){var d=new Date(Math.round((v-25569)*864e5));return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())}
+  var m=String(v||"").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m){var a=+m[1],b=+m[2];var mo=a,dy=b;if(a>12){dy=a;mo=b}return new Date(+m[3],mo-1,dy)}
+  return null;
+}
+function build(grid){
+  var hi=-1;for(var i=0;i<Math.min(grid.length,10);i++){if(grid[i].join("|").indexOf("كود البوليصه")>-1||grid[i].join("|").indexOf("كود البوليصة")>-1){hi=i;break}}
+  if(hi<0)throw new Error("لم أجد صف العناوين (كود البوليصه). تأكد إنك رفعت التاب الصحيح.");
+  var H=grid[hi].map(function(x){return String(x==null?"":x).trim()});
+  function ix(){for(var a=0;a<arguments.length;a++){var j=H.indexOf(arguments[a]);if(j>-1)return j}return-1}
+  var c={date:ix("تاريخ السحب"),code:ix("كود البوليصه","كود البوليصة"),rep:ix("اسم المندوب"),branch:ix("الفرع"),acct:ix("اسم الاكونت"),status:ix("حاله الشحنه","حالة الشحنة"),fin:ix("حالة الشحنه النهائيه","حالة الشحنة النهائية"),note:ix("ملاحظات"),final:ix("الحالة النهائية"),sol:ix("نوع الحل"),ops:ix("رد العمليات")};
+  var g=function(r,k){return c[k]>-1&&r[c[k]]!=null?String(r[c[k]]).trim():""};
+  var out=[];
+  for(var j=hi+1;j<grid.length;j++){var r=grid[j];if(!r||!String(r[c.code]||"").trim())continue;
+    out.push({date:toDate(r[c.date]),code:g(r,"code"),rep:g(r,"rep"),branch:g(r,"branch"),acct:g(r,"acct"),status:g(r,"status").replace(/^\\/,""),finalShip:g(r,"fin"),note:g(r,"note"),final:g(r,"final"),sol:g(r,"sol"),ops:g(r,"ops")})}
+  if(!out.length)throw new Error("الملف لا يحتوي على سجلات.");
+  return out;
+}
+function load(file){
+  var rd=new FileReader(),isX=/\.xlsx?$/i.test(file.name);
+  rd.onload=function(){
+    try{
+      var grid;
+      if(isX){var wb=XLSX.read(rd.result,{type:"array",cellDates:true});var ws=wb.Sheets[wb.SheetNames[0]];grid=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""})}
+      else grid=parseCSV(rd.result);
+      DATA=build(grid);isLive=true;srcName=file.name;F={branch:"",acct:"",status:""};Q="";$("q").value="";sync();render();
+    }catch(e){alert_("تعذّر قراءة الملف: "+e.message)}
+  };
+  if(isX)rd.readAsArrayBuffer(file);else rd.readAsText(file,"utf-8");
+}
+function alert_(m){var b=$("banner");b.className="banner";b.style.background="var(--bad-soft)";b.style.color="var(--bad)";b.textContent=m}
+
+$("up").onclick=function(){$("file").click()};
+$("file").onchange=function(e){if(e.target.files[0])load(e.target.files[0])};
+$("fBranch").onchange=function(e){F.branch=e.target.value;render()};
+$("fAcct").onchange=function(e){F.acct=e.target.value;render()};
+$("fStatus").onchange=function(e){F.status=e.target.value;render()};
+$("reset").onclick=function(){F={branch:"",acct:"",status:""};Q="";$("q").value="";sync();render()};
+$("q").oninput=function(e){Q=e.target.value;render()};
+document.documentElement.dir="rtl";document.documentElement.lang="ar";
+sync();render();
+</script>
+
+</body>
+</html>
