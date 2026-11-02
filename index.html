@@ -81,7 +81,7 @@ td.num{font-variant-numeric:tabular-nums}
     </div>
     <div>
       <input type="file" id="file" accept=".csv,.xlsx,.xls" hidden>
-      <button class="btn" id="up">رفع ملف الشيت (CSV / Excel)</button>
+      <button class="btn" id="sync">تحديث من الشيت</button> <button class="btn ghost" id="up">رفع ملف (CSV / Excel)</button>
     </div>
   </header>
 
@@ -213,6 +213,7 @@ var R=[
 var SAMPLE=R.map(function(x){return{date:new Date(2026,5,13),code:x[0],rep:x[1],branch:BR[x[2]],acct:AC[x[3]],status:ST[x[4]],finalShip:"قيد التشغيل",note:x[5],final:"تم الرد",sol:"جاهز للإستلام اليوم أو غدا",ops:""}});
 
 // ---------- State ----------
+var SHEET_ID="15TE2xJJgRR8rv2K0x6zofFWk8ShY7OAFGA-kTB-j1xA",GID="903948005",LIVE_URL="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&gid="+GID,liveErr="";
 var DATA=SAMPLE, isLive=false, srcName="عيّنة من تاب 15-6", F={branch:"",acct:"",status:""}, Q="";
 var $=function(id){return document.getElementById(id)};
 var CONTACT=["العميل لا يرد","التليفون مغلق باستمرار"];
@@ -246,8 +247,8 @@ function render(){
   var rows=filtered(), n=rows.length;
   $("sub").textContent="المصدر: "+srcName+" · تاريخ الحساب: "+dstr(TODAY);
   var b=$("banner");
-  if(isLive){b.className="banner live";b.textContent="بيانات كاملة من الملف المرفوع: "+fmt(DATA.length)+" سجل"}
-  else{b.className="banner";b.textContent="تنبيه: الأرقام الحالية من عيّنة "+fmt(DATA.length)+" صف فقط من أصل 143 صف في الشيت. ارفع ملف التاب (CSV أو Excel) لتحديث الداش بورد على كل البيانات."}
+  if(isLive){b.className="banner live";b.textContent="بيانات محمّلة من المصدر: "+fmt(DATA.length)+" سجل"}
+  else{b.className="banner";b.textContent="تنبيه: الأرقام الحالية من عيّنة "+fmt(DATA.length)+" صف فقط من أصل 143 صف في الشيت. اضغط «تحديث من الشيت» أو ارفع ملف CSV لعرض كل البيانات."}
 
   var uniq=new Set(rows.map(function(r){return r.code})).size;
   var contact=rows.filter(function(r){return CONTACT.indexOf(r.status)>-1}).length;
@@ -352,8 +353,24 @@ function load(file){
   };
   if(isX)rd.readAsArrayBuffer(file);else rd.readAsText(file,"utf-8");
 }
+function loadLive(){
+  var b=$("sync");b.disabled=true;b.textContent="جاري التحديث...";
+  return fetch(LIVE_URL+"&_="+Date.now(),{cache:"no-store"}).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.text();
+  }).then(function(t){
+    if(/^\s*<(!doctype|html)/i.test(t))throw new Error("الشيت غير متاح للعرض بالرابط (يطلب تسجيل دخول)");
+    DATA=build(parseCSV(t));isLive=true;liveErr="";
+    var d=new Date();srcName="Google Sheets مباشر · آخر تحديث "+d.getHours()+":"+("0"+d.getMinutes()).slice(-2);
+    F={branch:"",acct:"",status:""};sync();render();
+  }).catch(function(e){
+    liveErr="تعذّر الاتصال بالشيت ("+e.message+"). المعروض حاليًا "+(isLive?"آخر بيانات تم تحميلها":"عيّنة 76 صف")+". يمكنك رفع ملف CSV يدويًا.";
+    render();alert_(liveErr);
+  }).then(function(){b.disabled=false;b.textContent="تحديث من الشيت"});
+}
 function alert_(m){var b=$("banner");b.className="banner";b.style.background="var(--bad-soft)";b.style.color="var(--bad)";b.textContent=m}
 
+$("sync").onclick=loadLive;
 $("up").onclick=function(){$("file").click()};
 $("file").onchange=function(e){if(e.target.files[0])load(e.target.files[0])};
 $("fBranch").onchange=function(e){F.branch=e.target.value;render()};
@@ -362,7 +379,7 @@ $("fStatus").onchange=function(e){F.status=e.target.value;render()};
 $("reset").onclick=function(){F={branch:"",acct:"",status:""};Q="";$("q").value="";sync();render()};
 $("q").oninput=function(e){Q=e.target.value;render()};
 document.documentElement.dir="rtl";document.documentElement.lang="ar";
-sync();render();
+sync();render();loadLive();
 </script>
 
 </body>
