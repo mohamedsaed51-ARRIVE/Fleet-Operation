@@ -1,4 +1,13 @@
-# fleet عدم تبليغ و عدم ارسال صور
+# لوحة تحكم قسم المتابعة — ARRIVE
 
-داش بورد يقرأ تابين من الشيت (عدم الابلاغ، عدم ارسال صورة) عبر Google Apps Script. افتح `index.html` في المتصفح. لا توجد بيانات مخزنة في هذا الـ repo.
+لوحة واحدة تجمع 3 لوحات في تبويبات. افتح `index.html` (أو انشره على Vercel/GitHub Pages).
 
+| التبويب | الملف | مصدر البيانات |
+|---|---|---|
+| عدم الإبلاغ / عدم إرسال صورة | `pages/non-reporting.html` | Apps Script الخاص بها (+ Sheets CSV احتياطي) |
+| Fleet Validation | `pages/validation.html` | Apps Script الخاص بها (`API_URL` داخل الملف) |
+| Fleet Support | `pages/support.html` | Apps Script الخاص بها (`DEFAULT_API_URL`، أو ⚙️ في الواجهة) |
+
+- كل لوحة محفوظة كما هي بدون تغيير في منطقها أو أرقامها؛ الصفحة الرئيسية تعرضها داخل تبويبات وتحمّل كل لوحة عند أول فتح فقط.
+- الرابط المباشر لتبويب: `index.html#reporting` أو `#validation` أو `#support`.
+- التعديل على أي لوحة يتم في ملفها داخل `pages/`. نسخ `validation.html` و`support.html` منسوخة من مستودعي `fleet-validation-dashboard` و`Fleet-new` (الأخير يُبنى من `parts/` بـ `tools/build.py`)؛ أي تحديث هناك يجب نسخ ناتجه هنا.
