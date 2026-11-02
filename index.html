@@ -3,332 +3,120 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>fleet عدم تبليغ و عدم ارسال صور</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<title>لوحة تحكم قسم المتابعة — ARRIVE</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap">
 <style>
-/* Layout: RTL ops console — header + tab switch, filter strip, KPI row, chart grid, column explorer, detail table */
 :root{
-  --bg:#f4f6f8; --surface:#ffffff; --ink:#16212b; --muted:#5d6b78; --line:#dbe2e8;
-  --accent:#0b6e8a; --accent-soft:#d7edf3; --bar:#0b6e8a;
-  --warn:#b45309; --warn-soft:#fdecd2; --bad:#b42318; --bad-soft:#fde2df; --ok:#157f4b; --ok-soft:#dcf3e6;
-  --font:'IBM Plex Sans Arabic','Segoe UI',Tahoma,Arial,sans-serif;
+  --bg:#f4f8fd; --surface:#fff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --brand:#0837c9; --brand-ink:#fff; --teal:#00c7e6;
+  --font:'Cairo','Segoe UI',Tahoma,Arial,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0f1519; --surface:#172027; --ink:#e6edf2; --muted:#93a3b0; --line:#2a3741;
-  --accent:#58b8d2; --accent-soft:#16333d; --bar:#58b8d2;
-  --warn:#f0a649; --warn-soft:#3a2a12; --bad:#f08a80; --bad-soft:#40201d; --ok:#5fd09a; --ok-soft:#173326; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0f1519; --surface:#172027; --ink:#e6edf2; --muted:#93a3b0; --line:#2a3741;
-  --accent:#58b8d2; --accent-soft:#16333d; --bar:#58b8d2;
-  --warn:#f0a649; --warn-soft:#3a2a12; --bad:#f08a80; --bad-soft:#40201d; --ok:#5fd09a; --ok-soft:#173326; color-scheme:dark}
+  --bg:#0b1220; --surface:#131c2e; --ink:#e6edf6; --muted:#93a3b8; --line:#243047;
+  --brand:#3b6bff; --brand-ink:#fff; color-scheme:dark}}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.6;margin:0;
-  padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.wrap{max-width:1250px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
-header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between}
-h1{font-size:22px;margin:0;font-weight:700;text-wrap:balance}
-.sub{color:var(--muted);font-size:13px;margin-top:2px}
-.btn{font-family:inherit;font-size:13px;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--bg);padding:8px 14px;border-radius:6px;cursor:pointer}
-.btn.ghost{background:transparent;color:var(--accent)}
-.btn:disabled{opacity:.6;cursor:wait}
-.btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.tabs{display:flex;flex-wrap:wrap;gap:6px}
-.tab{font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
-.tab[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
-.tab small{opacity:.75;font-weight:500;margin-inline-start:6px}
-.banner{padding:10px 14px;border-radius:6px;background:var(--warn-soft);color:var(--warn);font-weight:600;font-size:13px;overflow-wrap:anywhere}
-.banner.live{background:var(--ok-soft);color:var(--ok)}
-.banner.err{background:var(--bad-soft);color:var(--bad)}
-.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
-.filters label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:150px;flex:1 1 150px}
-select,input[type=search]{font-family:inherit;font-size:13px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
-.kpi .l{font-size:12px;color:var(--muted)}
-.kpi .v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25}
-.kpi .n{font-size:11.5px;color:var(--muted)}
-.kpi.warn .v{color:var(--warn)} .kpi.bad .v{color:var(--bad)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
-.card h2{font-size:15px;margin:0 0 2px}
-.card .h{font-size:12px;color:var(--muted);margin-bottom:10px}
-.row{display:grid;grid-template-columns:minmax(90px,170px) 1fr 84px;gap:8px;align-items:center;padding:3px 0;font-size:13px}
-.row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.track{background:var(--bg);height:14px;border-radius:3px;overflow:hidden}
-.fill{height:100%;background:var(--bar);border-radius:3px;display:block}
-.row.clickable{cursor:pointer}
-.row.clickable:hover .nm{color:var(--accent)}
-.val{font-variant-numeric:tabular-nums;text-align:left;direction:ltr;color:var(--muted);font-size:12px}
-.val b{color:var(--ink)}
-.dq{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
-.dq div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding:4px 0}
-.pill{display:inline-block;padding:0 8px;border-radius:10px;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent)}
-.pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.ok{background:var(--ok-soft);color:var(--ok)}
-.tablewrap{overflow:auto;max-height:480px;border:1px solid var(--line);border-radius:6px}
-table{border-collapse:collapse;width:100%;font-size:12.5px}
-th,td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
-th{position:sticky;top:0;background:var(--surface);color:var(--muted);font-weight:600;z-index:1}
-td.num{font-variant-numeric:tabular-nums}
-.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
-.tools input{max-width:320px}
-.foot{color:var(--muted);font-size:12px}
-.empty{color:var(--muted);padding:10px 0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);display:flex;flex-direction:column}
+.top{background:var(--surface);border-bottom:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}
+.row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-size:20px;font-weight:800;display:flex;align-items:center;gap:10px;text-wrap:balance}
+h1::before{content:"";width:6px;height:24px;border-radius:3px;background:linear-gradient(var(--brand),var(--teal))}
+.sub{color:var(--muted);font-size:12px;margin:2px 16px 0 0}
+.actions{display:flex;gap:8px}
+.btn{font-family:inherit;font-size:12px;font-weight:600;color:var(--brand);background:transparent;
+  border:1px solid var(--brand);border-radius:6px;padding:6px 12px;cursor:pointer;text-decoration:none}
+.btn:hover{background:var(--brand);color:var(--brand-ink)}
+.tabs{display:flex;gap:4px;margin-top:10px;overflow-x:auto;scrollbar-width:thin}
+.tab{font-family:inherit;font-size:14px;font-weight:700;white-space:nowrap;cursor:pointer;
+  background:transparent;color:var(--muted);border:0;border-bottom:3px solid transparent;padding:10px 16px}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected=true]{color:var(--brand);border-bottom-color:var(--brand)}
+.tab:focus-visible,.btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+main{flex:1;position:relative;min-height:0}
+.panel{position:absolute;inset:0;display:none}
+.panel.active{display:block}
+iframe{width:100%;height:100%;border:0;background:var(--bg);display:block}
+.loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:14px;pointer-events:none}
+.panel.ready .loading{display:none}
+@media (max-width:600px){h1{font-size:17px}.tab{padding:9px 12px;font-size:13px}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
+<header class="top">
+  <div class="row">
     <div>
-      <h1>fleet عدم تبليغ و عدم ارسال صور</h1>
-      <div class="sub" id="sub"></div>
+      <h1>لوحة تحكم قسم المتابعة</h1>
+      <div class="sub">ARRIVE — عدم الإبلاغ وعدم إرسال الصور • Fleet Validation • Fleet Support</div>
     </div>
-    <div>
-      <input type="file" id="file" accept=".csv,.xlsx,.xls" hidden>
-      <button class="btn" id="sync">تحديث من الشيت</button>
-      <button class="btn ghost" id="up">رفع ملف (CSV / Excel)</button>
+    <div class="actions">
+      <button class="btn" id="reload" type="button">تحديث اللوحة</button>
+      <a class="btn" id="newtab" href="#" target="_blank" rel="noopener">فتح في تبويب مستقل</a>
     </div>
-  </header>
-
-  <div class="tabs" id="tabs" role="tablist" aria-label="التابات"></div>
-  <div class="banner" id="banner">جاري تحميل التابات من الشيت...</div>
-
-  <section class="filters" aria-label="الفلاتر">
-    <label>فرع المنطقة<select id="fBranch"></select></label>
-    <label>المحافظة<select id="fGov"></select></label>
-    <label>الراسل<select id="fSender"></select></label>
-    <label>حالة الشحنة<select id="fStatus"></select></label>
-    <button class="btn ghost" id="reset">إعادة ضبط</button>
-  </section>
-
-  <section class="kpis" id="kpis"></section>
-
-  <section class="grid">
-    <div class="card"><h2>حسب فرع المنطقة</h2><div class="h">اضغط على فرع لتصفية الداش بورد</div><div id="cBranch"></div></div>
-    <div class="card"><h2>حسب المحافظة</h2><div class="h">أعلى 15</div><div id="cGov"></div></div>
-    <div class="card"><h2>حسب الراسل</h2><div class="h">أعلى 15</div><div id="cSender"></div></div>
-    <div class="card"><h2>حسب حالة الشحنة</h2><div class="h">&nbsp;</div><div id="cStatus"></div></div>
-    <div class="card"><h2>حسب الشهر</h2><div class="h">من عمود «الشهر»</div><div id="cMonth"></div></div>
-    <div class="card"><h2>تحليل حسب أي عمود</h2>
-      <div class="h">اختار أي عمود في التاب (مثل أعمدة التبليغ أو الصور) لعرض توزيعه</div>
-      <select id="fCol" aria-label="العمود"></select><div id="cCol" style="margin-top:8px"></div></div>
-  </section>
-
-  <section class="card">
-    <h2>مراجعة جودة البيانات</h2>
-    <div class="h">فحوصات على السجلات المعروضة بعد الفلاتر</div>
-    <div class="dq" id="dq"></div>
-  </section>
-
-  <section class="card">
-    <h2>تفاصيل الشحنات</h2>
-    <div class="tools">
-      <input type="search" id="q" placeholder="بحث في كل الأعمدة">
-      <span class="foot" id="cnt"></span>
-    </div>
-    <div class="tablewrap"><table id="detail"></table></div>
-  </section>
-
-  <div class="foot" id="note"></div>
-</div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="لوحات قسم المتابعة"></nav>
+</header>
+<main id="main"></main>
 
 <script>
-var API_URL="https://script.google.com/macros/s/AKfycbwflm-rieaN39ypzBm9zL5BN0AsNQB09AM15OOOcb3yl5UkdvleIcMnECye3_MFbsbL/exec";
-var WANT=["عدمالابلاغ","عدمارسالصور"]; // التابان المطلوبان (بعد توحيد الهمزات والتاء المربوطة)
-var $=function(id){return document.getElementById(id)};
-var TABS=[],CUR=null,CACHE={},H=[],ROWS=[],C={},F={branch:"",gov:"",sender:"",status:""},Q="",COL="",SRC="";
-var TODAY=new Date();TODAY=new Date(TODAY.getFullYear(),TODAY.getMonth(),TODAY.getDate());
+// لوحات القسم. كل لوحة تعمل كما هي (بياناتها ورابط Apps Script الخاص بها) داخل تبويب،
+// وتُحمَّل عند أول فتح فقط حتى لا تُستدعى 3 واجهات API معًا عند الدخول.
+var DASHBOARDS = [
+  { id: "reporting",  title: "عدم الإبلاغ / عدم إرسال صورة", src: "pages/non-reporting.html" },
+  { id: "validation", title: "Fleet Validation",              src: "pages/validation.html" },
+  { id: "support",    title: "Fleet Support",                 src: "pages/support.html" }
+];
 
-function norm(s){return String(s==null?"":s).replace(/[\s_\-]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").toLowerCase()}
-function fmt(n){return Number(n).toLocaleString("en-US",{maximumFractionDigits:0})}
-function pct(a,b){return b?(a/b*100).toFixed(1)+"%":"—"}
-function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function num(v){var x=parseFloat(String(v==null?"":v).replace(/[^\d.\-]/g,""));return isNaN(x)?null:x}
-function toDate(v){
-  if(v instanceof Date)return new Date(v.getFullYear(),v.getMonth(),v.getDate());
-  var t=String(v||"").trim(),m=t.match(/^(\d{1,4})([\/\-.])(\d{1,2})\2(\d{1,4})/);
-  if(!m)return null;
-  var a=+m[1],b=+m[3],c=+m[4],y,mo,d;
-  if(a>31){y=a;mo=b;d=c}else{y=c;if(m[2]==="/"){mo=a;d=b}else{d=a;mo=b}
-    if(mo>12){var x=mo;mo=d;d=x}}
-  if(y<100)y+=2000;
-  var r=new Date(y,mo-1,d);return isNaN(r)?null:r;
-}
-function ageDays(d){return d?Math.round((TODAY-d)/864e5):null}
-function dstr(d){return d?d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear():""}
-function countBy(rows,fn){var m={};rows.forEach(function(r){var k=fn(r);k=(k==null||String(k).trim()==="")?"(فارغ)":String(k).trim();m[k]=(m[k]||0)+1});return Object.keys(m).map(function(k){return[k,m[k]]}).sort(function(a,b){return b[1]-a[1]})}
+var tabsEl = document.querySelector(".tabs"), main = document.getElementById("main");
+var current = null;
 
-// ---------- Parsing ----------
-function parseCSV(t){
-  var rows=[],r=[],c="",q=false,i=0;t=t.replace(/^﻿/,"");
-  for(;i<t.length;i++){var ch=t[i];
-    if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
-    else if(ch=='"')q=true;
-    else if(ch==","){r.push(c);c=""}
-    else if(ch=="\n"||ch=="\r"){if(ch=="\r"&&t[i+1]=="\n")i++;r.push(c);rows.push(r);r=[];c=""}
-    else c+=ch}
-  if(c!==""||r.length){r.push(c);rows.push(r)}
-  return rows;
-}
-function findCol(hs,exact,sub){
-  var n=hs.map(norm),i;
-  for(i=0;i<n.length;i++)if(exact.indexOf(n[i])>-1)return i;
-  for(i=0;i<n.length;i++)for(var k=0;k<(sub||[]).length;k++)if(n[i].indexOf(sub[k])>-1)return i;
-  return -1;
-}
-function prepare(grid){
-  var hi=0;while(hi<grid.length&&!grid[hi].some(function(c){return String(c).trim()!==""}))hi++;
-  if(hi>=grid.length)throw new Error("التاب فارغ");
-  H=grid[hi].map(function(x,i){return String(x==null?"":x).trim()||("عمود "+(i+1))});
-  C={date:findCol(H,["تاريخالاضافه","تاريخالاضافة"],["تاريخ"]),month:findCol(H,["الشهر"]),code:findCol(H,["رقمالبوليصه"],["بوليص","awb"]),
-     sender:findCol(H,["الراسل"]),gov:findCol(H,["المحافظه"]),area:findCol(H,["المنطقه"]),cost:findCol(H,["تكلفهالشحن"],["تكلفه"]),
-     branch:findCol(H,["فرعالمنطقه"],["فرع"]),cod:findCol(H,["مبلغالتحصيل"],["تحصيل"]),status:findCol(H,["حالهالشحنه"],["حالهالشحن"])};
-  ROWS=[];
-  for(var j=hi+1;j<grid.length;j++){var r=grid[j];if(!r||!r.some(function(c){return String(c==null?"":c).trim()!==""}))continue;
-    var v=H.map(function(_,k){return r[k]==null?"":r[k]});
-    ROWS.push({v:v,date:C.date>-1?toDate(v[C.date]):null});
+DASHBOARDS.forEach(function (d) {
+  var b = document.createElement("button");
+  b.className = "tab"; b.type = "button"; b.id = "tab-" + d.id; b.textContent = d.title;
+  b.setAttribute("role", "tab"); b.setAttribute("aria-controls", "panel-" + d.id);
+  b.addEventListener("click", function () { location.hash = d.id; });
+  tabsEl.appendChild(b);
+
+  var p = document.createElement("section");
+  p.className = "panel"; p.id = "panel-" + d.id; p.setAttribute("role", "tabpanel");
+  p.innerHTML = '<div class="loading">جارٍ تحميل اللوحة…</div>';
+  main.appendChild(p);
+  d.tab = b; d.panel = p;
+});
+
+function show(id) {
+  var d = DASHBOARDS.filter(function (x) { return x.id === id; })[0] || DASHBOARDS[0];
+  current = d;
+  DASHBOARDS.forEach(function (x) {
+    var on = x === d;
+    x.tab.setAttribute("aria-selected", on);
+    x.panel.classList.toggle("active", on);
+  });
+  if (!d.frame) {
+    var f = document.createElement("iframe");
+    f.title = d.title; f.src = d.src; f.loading = "lazy";
+    f.addEventListener("load", function () { d.panel.classList.add("ready"); });
+    d.panel.appendChild(f); d.frame = f;
   }
-}
-function toGrid(t){
-  var x;try{x=JSON.parse(t)}catch(e){return parseCSV(t)}
-  if(x&&x.ok===false)throw new Error(x.error||"خطأ من السكريبت");
-  if(!Array.isArray(x)&&x&&typeof x==="object"){var ks=Object.keys(x);for(var k=0;k<ks.length;k++){if(Array.isArray(x[ks[k]])&&ks[k]==="rows"){x=x[ks[k]];break}}}
-  if(!Array.isArray(x))throw new Error("شكل الرد غير معروف: "+t.slice(0,200));
-  if(x.length&&!Array.isArray(x[0])&&typeof x[0]==="object"){
-    var h=Object.keys(x[0]);x.forEach(function(o){Object.keys(o).forEach(function(k){if(h.indexOf(k)<0)h.push(k)})});
-    return [h].concat(x.map(function(o){return h.map(function(k){return o[k]==null?"":o[k]})}));
-  }
-  return x;
-}
-function fetchText(u){return fetch(u,{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.text()}).then(function(t){
-  if(/^\s*<(!doctype|html)/i.test(t))throw new Error("المصدر غير متاح للعرض بالرابط (يطلب تسجيل دخول)");return t})}
-
-// ---------- Loading ----------
-function banner(msg,cls){var b=$("banner");b.className="banner "+(cls||"");b.textContent=msg}
-function loadTabs(){
-  var b=$("sync");b.disabled=true;
-  banner("جاري تحميل التابات من الشيت...");
-  return fetchText(API_URL+"?list=1&_="+Date.now()).then(function(t){
-    var o=JSON.parse(t);
-    if(!o.ok||!o.sheets)throw new Error("السكريبت لا يدعم عرض التابات. حدّث كود Apps Script وانشر نسخة جديدة. الرد: "+t.slice(0,150));
-    var m=o.sheets.filter(function(s){var n=norm(s.name);return WANT.some(function(w){return n.indexOf(w)>-1})});
-    if(!m.length)throw new Error("لم أجد تاب «عدم الابلاغ» أو «عدم ارسال صورة». التابات الموجودة: "+o.sheets.map(function(s){return s.name}).join("، "));
-    TABS=m;
-    renderTabs();
-    var keep=TABS.filter(function(s){return CUR&&s.gid===CUR.gid})[0];
-    return openTab(keep||TABS[0],true);
-  }).catch(function(e){banner("تعذّر تحميل التابات ("+e.message+"). يمكنك رفع ملف CSV يدويًا.","err")})
-  .then(function(){b.disabled=false});
-}
-function renderTabs(){
-  $("tabs").innerHTML=TABS.map(function(s){return'<button class="tab" role="tab" data-g="'+s.gid+'" aria-selected="'+(CUR&&CUR.gid===s.gid)+'">'+esc(s.name)+'<small>'+fmt(s.rows)+'</small></button>'}).join("");
-  $("tabs").querySelectorAll(".tab").forEach(function(n){n.onclick=function(){var s=TABS.filter(function(x){return String(x.gid)===n.getAttribute("data-g")})[0];openTab(s,false)}});
-}
-function openTab(s,force){
-  if(!s)return Promise.resolve();
-  CUR=s;renderTabs();F={branch:"",gov:"",sender:"",status:""};Q="";$("q").value="";COL="";
-  if(CACHE[s.gid]&&!force){setData(s,CACHE[s.gid]);return Promise.resolve()}
-  banner("جاري تحميل تاب «"+s.name+"» ("+fmt(s.rows)+" صف)...");
-  return fetchText(API_URL+"?gid="+s.gid+"&_="+Date.now()).then(function(t){
-    var g=toGrid(t);CACHE[s.gid]=g;setData(s,g);
-  }).catch(function(e){banner("تعذّر تحميل تاب «"+s.name+"» ("+e.message+")","err")});
-}
-function setData(s,grid){
-  try{prepare(grid)}catch(e){banner(e.message,"err");return}
-  var d=new Date();SRC=s.name+" · آخر تحديث "+d.getHours()+":"+("0"+d.getMinutes()).slice(-2);
-  banner("بيانات تاب «"+s.name+"»: "+fmt(ROWS.length)+" سجل","live");
-  fillFilters();render();
-}
-function loadFile(file){
-  var rd=new FileReader(),isX=/\.xlsx?$/i.test(file.name);
-  rd.onload=function(){try{
-    var grid;
-    if(isX){var wb=XLSX.read(rd.result,{type:"array",cellDates:true});grid=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""})}
-    else grid=parseCSV(rd.result);
-    CUR={gid:"file",name:file.name,rows:grid.length-1};setData(CUR,grid);
-  }catch(e){banner("تعذّر قراءة الملف: "+e.message,"err")}};
-  if(isX)rd.readAsArrayBuffer(file);else rd.readAsText(file,"utf-8");
+  document.getElementById("newtab").href = d.src;
+  try { sessionStorage.setItem("followup-tab", d.id); } catch (e) {}
 }
 
-// ---------- Rendering ----------
-function val(r,k){return C[k]>-1?r.v[C[k]]:""}
-function filtered(){
-  var q=Q.trim().toLowerCase();
-  return ROWS.filter(function(r){
-    return(!F.branch||String(val(r,"branch")).trim()===F.branch)&&(!F.gov||String(val(r,"gov")).trim()===F.gov)&&
-      (!F.sender||String(val(r,"sender")).trim()===F.sender)&&(!F.status||String(val(r,"status")).trim()===F.status)&&
-      (!q||r.v.join(" ").toLowerCase().indexOf(q)>-1)});
+function route() {
+  var id = location.hash.replace("#", "");
+  if (!id) { try { id = sessionStorage.getItem("followup-tab") || ""; } catch (e) {} }
+  show(id);
 }
-function opts(sel,idx,cur,all){
-  if(idx<0){sel.innerHTML='<option value="">'+all+' (العمود غير موجود)</option>';sel.disabled=true;return}
-  sel.disabled=false;
-  var vs=countBy(ROWS,function(r){return r.v[idx]}).map(function(e){return e[0]}).sort();
-  sel.innerHTML='<option value="">'+all+'</option>'+vs.map(function(v){return'<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>'}).join("");
-}
-function fillFilters(){
-  opts($("fBranch"),C.branch,F.branch,"كل الفروع");opts($("fGov"),C.gov,F.gov,"كل المحافظات");
-  opts($("fSender"),C.sender,F.sender,"كل الراسلين");opts($("fStatus"),C.status,F.status,"كل الحالات");
-  $("fCol").innerHTML=H.map(function(h,i){return'<option value="'+i+'"'+(String(i)===COL?' selected':'')+'>'+esc(h)+'</option>'}).join("");
-  if(COL==="")COL=String(Math.max(C.status,0));
-  $("fCol").value=COL;
-}
-function bars(el,entries,total,key,limit){
-  entries=limit?entries.slice(0,limit):entries;
-  if(!entries.length){el.innerHTML='<div class="empty">لا توجد بيانات</div>';return}
-  var max=entries[0][1];
-  el.innerHTML=entries.map(function(e){
-    var on=key&&F[key]===e[0];
-    return'<div class="row'+(key?' clickable':'')+'" data-k="'+esc(e[0])+'" title="'+esc(e[0])+'"><span class="nm"'+(on?' style="color:var(--accent);font-weight:700"':'')+'>'+esc(e[0])+'</span><span class="track"><span class="fill" style="width:'+(e[1]/max*100)+'%"></span></span><span class="val"><b>'+fmt(e[1])+'</b> · '+pct(e[1],total)+'</span></div>'}).join("");
-  if(key)el.querySelectorAll(".row").forEach(function(n){n.onclick=function(){var k=n.getAttribute("data-k");F[key]=F[key]===k?"":k;fillFilters();render()}});
-}
-function sum(rows,k){var s=0,c=0;rows.forEach(function(r){var x=num(val(r,k));if(x!=null){s+=x;c++}});return{s:s,c:c}}
-function render(){
-  if(!H.length)return;
-  var rows=filtered(),n=rows.length;
-  $("sub").textContent="المصدر: "+(CUR?CUR.name:"")+" · "+SRC.split(" · ").slice(1).join(" · ")+" · تاريخ الحساب: "+dstr(TODAY);
-  var codes={},dup=0;
-  if(C.code>-1){rows.forEach(function(r){var c=String(val(r,"code")).trim();if(c)codes[c]=(codes[c]||0)+1});Object.keys(codes).forEach(function(c){if(codes[c]>1)dup++})}
-  var uniq=C.code>-1?Object.keys(codes).length:null;
-  var cod=sum(rows,"cod"),cost=sum(rows,"cost");
-  var ages=rows.map(function(r){return ageDays(r.date)}).filter(function(x){return x!=null});
-  var oldest=ages.length?Math.max.apply(null,ages):null;
-  var k=[["إجمالي السجلات",fmt(n),uniq==null?"":"بوليصات فريدة: "+fmt(uniq),""],
-    ["الفروع / المحافظات",(C.branch>-1?new Set(rows.map(function(r){return val(r,"branch")})).size:"—")+" / "+(C.gov>-1?new Set(rows.map(function(r){return val(r,"gov")})).size:"—"),"عدد القيم المختلفة",""],
-    ["الراسلون",C.sender>-1?fmt(new Set(rows.map(function(r){return val(r,"sender")})).size):"—","عدد الراسلين المختلفين",""],
-    ["مبلغ التحصيل",C.cod>-1?fmt(cod.s):"—",C.cod>-1?"من "+fmt(cod.c)+" سجل رقمي":"العمود غير موجود",""],
-    ["تكلفة الشحن",C.cost>-1?fmt(cost.s):"—",C.cost>-1?"من "+fmt(cost.c)+" سجل رقمي":"العمود غير موجود",""],
-    ["أقدم سجل (يوم)",oldest==null?"—":fmt(oldest),"من تاريخ الإضافة حتى اليوم",oldest>30?"bad":""]];
-  $("kpis").innerHTML=k.map(function(x){return'<div class="kpi '+x[3]+'"><div class="l">'+x[0]+'</div><div class="v">'+x[1]+'</div><div class="n">'+x[2]+'</div></div>'}).join("");
+window.addEventListener("hashchange", route);
 
-  function chart(id,idx,key,lim){if(idx<0){$(id).innerHTML='<div class="empty">العمود غير موجود في هذا التاب</div>';return}bars($(id),countBy(rows,function(r){return r.v[idx]}),n,key,lim)}
-  chart("cBranch",C.branch,"branch");chart("cGov",C.gov,"gov",15);chart("cSender",C.sender,"sender",15);chart("cStatus",C.status,"status");chart("cMonth",C.month,null);
-  bars($("cCol"),countBy(rows,function(r){return r.v[+COL]}),n,null,15);
+document.getElementById("reload").addEventListener("click", function () {
+  if (!current || !current.frame) return;
+  current.panel.classList.remove("ready");
+  current.frame.src = current.src;
+});
 
-  var noDate=rows.filter(function(r){return!r.date}).length,blankStatus=C.status>-1?rows.filter(function(r){return String(val(r,"status")).trim()===""}).length:null;
-  var noPhone=0;
-  var dq=[["بوليصات مكررة",C.code>-1?dup:"—",dup?"bad":"ok"],["تاريخ إضافة غير صالح أو فارغ",C.date>-1?noDate:"—",noDate?"warn":"ok"],
-    ["حالة الشحنة فارغة",blankStatus==null?"—":blankStatus,blankStatus?"warn":"ok"],["عدد الأعمدة في التاب",H.length,""]];
-  $("dq").innerHTML=dq.map(function(x){return'<div><span>'+x[0]+'</span><span class="pill '+x[2]+'">'+x[1]+'</span></div>'}).join("");
-
-  var list=rows.slice().sort(function(a,b){return(ageDays(b.date)||-1)-(ageDays(a.date)||-1)}),LIM=300;
-  $("cnt").textContent="يعرض "+fmt(Math.min(LIM,list.length))+" من "+fmt(list.length)+" سجل (الأقدم أولًا)";
-  $("detail").innerHTML='<thead><tr><th>العمر (يوم)</th>'+H.map(function(h){return'<th>'+esc(h)+'</th>'}).join("")+'</tr></thead><tbody>'+
-    list.slice(0,LIM).map(function(r){var a=ageDays(r.date);return'<tr><td class="num">'+(a==null?"":a)+'</td>'+r.v.map(function(c){return'<td>'+esc(c instanceof Date?dstr(c):c)+'</td>'}).join("")+'</tr>'}).join("")+'</tbody>';
-  $("note").textContent="طريقة الحساب: العمر = تاريخ اليوم − تاريخ الإضافة بالأيام، والتاريخ بصيغة يوم-شهر-سنة لو مفصول بشرطة وشهر/يوم/سنة لو مفصول بشرطة مائلة، ومن غير حد SOP مطبّق. المبالغ مجموع القيم الرقمية فقط. النسب من السجلات بعد الفلاتر.";
-}
-
-$("sync").onclick=function(){CACHE={};loadTabs()};
-$("up").onclick=function(){$("file").click()};
-$("file").onchange=function(e){if(e.target.files[0])loadFile(e.target.files[0])};
-$("fBranch").onchange=function(e){F.branch=e.target.value;render()};
-$("fGov").onchange=function(e){F.gov=e.target.value;render()};
-$("fSender").onchange=function(e){F.sender=e.target.value;render()};
-$("fStatus").onchange=function(e){F.status=e.target.value;render()};
-$("fCol").onchange=function(e){COL=e.target.value;render()};
-$("reset").onclick=function(){F={branch:"",gov:"",sender:"",status:""};Q="";$("q").value="";fillFilters();render()};
-$("q").oninput=function(e){Q=e.target.value;render()};
-loadTabs();
+route();
 </script>
 </body>
 </html>
