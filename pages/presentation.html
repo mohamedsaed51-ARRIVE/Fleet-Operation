@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>العرض التقديمي — Fleet Support</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap">
+<style>
+:root{
+  --navy:#1E2761; --ink:#1B1F3B; --steel:#1F3A5F; --gold:#D4A94C; --red:#C8553D; --teal:#2A9D8F;
+  --mid:#3A4690; --soft:#F4F5FA; --line:#D9DCEB; --muted:#6B7280; --white:#fff;
+  --font:'Cairo','Segoe UI',Tahoma,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:var(--font);background:#2b2f45;color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+/* ---------- شريط التحكم (لا يُطبع) ---------- */
+.chrome{flex:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px;background:#161a33;color:#fff;font-size:13px}
+.chrome button,.chrome select{font-family:inherit;font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.28);border-radius:8px;padding:6px 12px;cursor:pointer}
+.chrome select option{color:#111}
+.chrome button:hover{background:rgba(255,255,255,.2)}
+.chrome button:disabled{opacity:.4;cursor:default}
+.chrome .sp{flex:1}
+.chrome .cnt{min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
+.chip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.12)}
+.chip.ok{background:rgba(42,157,143,.35)} .chip.bad{background:rgba(200,85,61,.45)}
+.viewport{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:10px;position:relative}
+.scaler{direction:ltr;position:relative}
+.stage{position:absolute;top:0;left:0;width:1280px;height:720px;transform-origin:top left}
+.msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#cbd0ea;font-size:16px;text-align:center;padding:30px;pointer-events:none;white-space:pre-line}
+/* ---------- الشريحة 1280×720 ---------- */
+.sl{display:none;position:absolute;inset:0;width:1280px;height:720px;background:#fff;overflow:hidden;direction:rtl;text-align:right;color:var(--ink)}
+.sl.on{display:block}
+.sl .tag{position:absolute;top:26px;right:48px;left:48px;font-size:15px;font-weight:700;color:var(--gold)}
+.sl h2{position:absolute;top:50px;right:48px;left:48px;margin:0;font-size:33px;line-height:1.3;font-weight:800;color:var(--navy)}
+.sl .sub{position:absolute;top:100px;right:48px;left:48px;font-size:16px;color:var(--muted)}
+.sl .body{position:absolute;top:140px;right:48px;left:48px;bottom:56px}
+.sl .ft{position:absolute;bottom:16px;right:48px;left:48px;display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.sl.dark{background:var(--navy);color:#fff}
+.sl.steel{background:var(--steel);color:#fff}
+.sl.dark h2,.sl.steel h2{color:#fff}
+.sl.cover::before{content:"";position:absolute;width:700px;height:700px;left:-120px;top:10px;border:3px solid var(--gold);border-radius:50%;opacity:.8}
+.sl.cover::after{content:"";position:absolute;width:560px;height:560px;left:-50px;top:80px;border:2px solid rgba(255,255,255,.55);border-radius:50%}
+.cv{position:absolute;right:80px;top:210px;width:520px}
+.cv h1{margin:0 0 10px;font-size:52px;line-height:1.25;font-weight:800}
+.cv p{margin:6px 0;font-size:22px;opacity:.9}
+.cv .by{margin-top:34px;font-size:16px;opacity:.8}
+.cv .mo{position:absolute;right:0;top:420px;color:var(--gold);font-size:22px;font-weight:700}
+.divider{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:800}
+/* ---------- مكونات ---------- */
+.kb{border-radius:6px;padding:14px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center;background:var(--soft);border:1px solid var(--line);min-width:0}
+.kb .n{font-size:40px;font-weight:800;line-height:1.15;color:var(--navy);font-variant-numeric:tabular-nums}
+.kb .l{font-size:15px;color:var(--ink);font-weight:600}
+.kb .s{font-size:12.5px;color:var(--muted);margin-top:3px}
+.kb.navy{background:var(--navy);border-color:var(--navy)} .kb.navy .n{color:var(--gold)} .kb.navy .l,.kb.navy .s{color:#fff}
+.kb.red{background:var(--red);border-color:var(--red)} .kb.teal{background:var(--teal);border-color:var(--teal)} .kb.gold{background:var(--gold);border-color:var(--gold)}
+.kb.red .n,.kb.teal .n,.kb.gold .n,.kb.red .l,.kb.teal .l,.kb.gold .l{color:#fff} .kb.red .s,.kb.teal .s,.kb.gold .s{color:rgba(255,255,255,.9)}
+.kb.sm .n{font-size:30px} .kb.sm .l{font-size:14px}
+.row{display:flex;gap:16px} .col{display:flex;flex-direction:column;gap:14px}
+.fill{flex:1;min-width:0} .box{background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:14px 18px}
+.box h4{margin:0 0 8px;font-size:16px;color:var(--navy)}
+.box.pink{background:#FBECE8;border-color:#F0C6BC} .box.pink h4{color:var(--red)}
+.note{font-size:13.5px;color:var(--muted);line-height:1.7}
+.big{font-size:56px;font-weight:800;color:var(--navy)}
+ul.bl{margin:0;padding:0 18px 0 0;font-size:15px;line-height:1.9}
+/* أعمدة رأسية */
+.vw{display:flex;flex-direction:column;height:100%}
+.vw>.vb{flex:1;min-height:0}
+.vb{display:flex;align-items:flex-end;justify-content:space-around;gap:10px;height:100%;border-bottom:2px solid var(--line);padding:0 6px}
+.vg{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;min-width:0}
+.vcols{display:flex;align-items:flex-end;justify-content:center;gap:5px;width:100%;flex:1;padding-top:26px}
+.vc{position:relative;flex:1;max-width:60px;min-height:2px;border-radius:2px 2px 0 0}
+.vc b{position:absolute;top:-21px;left:50%;transform:translateX(-50%);font-size:13px;color:var(--ink);white-space:nowrap}
+.vl{margin-top:8px;font-size:13.5px;font-weight:600;text-align:center;line-height:1.35;min-height:38px}
+.lg{display:flex;gap:18px;justify-content:center;font-size:13px;margin-top:8px}
+.lg i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-inline-end:6px;vertical-align:-1px}
+/* أعمدة أفقية */
+.hr{display:flex;align-items:center;gap:12px;margin:0 0 9px}
+.hl{width:230px;flex:none;font-size:14.5px;font-weight:600;text-align:right;line-height:1.3}
+.ht{flex:1;height:24px;background:var(--soft);border-radius:2px;overflow:hidden}
+.ht i{display:block;height:100%;border-radius:2px}
+.hv{width:130px;flex:none;font-size:14px;font-weight:700;text-align:left;direction:ltr;font-variant-numeric:tabular-nums}
+.st{flex:1;height:24px;display:flex;border-radius:2px;overflow:hidden;direction:ltr}
+.st i{display:flex;align-items:center;justify-content:center;font-size:11.5px;font-style:normal;color:#fff;font-weight:700;overflow:hidden;white-space:nowrap}
+/* جداول */
+table.tb{width:100%;border-collapse:collapse;font-size:14.5px;font-variant-numeric:tabular-nums}
+table.tb th{background:var(--navy);color:#fff;padding:7px 8px;font-weight:700;border:1px solid var(--navy);text-align:center}
+table.tb th.g1{background:var(--teal);border-color:var(--teal)} table.tb th.g2{background:var(--gold);border-color:var(--gold)} table.tb th.g3{background:var(--red);border-color:var(--red)}
+table.tb td{padding:5px 8px;border:1px solid var(--line);text-align:center}
+table.tb td:first-child{text-align:right;font-weight:600}
+table.tb tbody tr:nth-child(even){background:var(--soft)}
+table.tb tr.tot td{background:var(--line);font-weight:800}
+table.tb.sm{font-size:12.5px} table.tb.sm td{padding:3px 6px} table.tb.sm th{padding:5px 6px}
+.red{color:var(--red);font-weight:700}
+/* ---------- حالة عدم توفر بيانات ---------- */
+.na{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:20px;text-align:center;border:2px dashed var(--line);border-radius:8px;padding:30px}
+/* ---------- طباعة / PDF ---------- */
+@media print{
+  @page{size:1280px 720px;margin:0}
+  html,body{height:auto;overflow:visible;background:#fff;display:block}
+  .chrome,.msg{display:none!important}
+  .viewport{display:block;padding:0;height:auto}
+  .scaler{width:1280px!important;height:auto!important}
+  .stage{position:static;transform:none!important;height:auto}
+  .sl{display:block!important;position:relative;page-break-after:always;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media (max-width:700px){.chrome .hide-s{display:none}}
+</style>
+</head>
+<body>
+<div class="chrome">
+  <button id="prev" type="button" title="السابق">‹ السابق</button>
+  <span class="cnt" id="cnt">—</span>
+  <button id="next" type="button" title="التالي">التالي ›</button>
+  <select id="jump" aria-label="انتقال إلى شريحة"></select>
+  <select id="month" aria-label="الشهر"></select>
+  <span class="sp"></span>
+  <span id="st" class="hide-s"></span>
+  <button id="reload" type="button">تحديث البيانات</button>
+  <button id="full" type="button">ملء الشاشة</button>
+  <button id="print" type="button">طباعة / PDF</button>
+</div>
+<div class="viewport" id="vp">
+  <div class="scaler" id="scaler"><div class="stage" id="stage"></div></div>
+  <div class="msg" id="msg">جارٍ قراءة بيانات اللوحات…</div>
+</div>
+
+<script>
+/* =====================================================================
+   العرض التقديمي — تقرير أداء Fleet Support
+   لا يحتوي أرقامًا ثابتة: كل رقم يُحسب من بيانات اللوحات الثلاث
+   (Fleet Validation / Fleet Support / عدم الإبلاغ وعدم إرسال الصورة).
+   ===================================================================== */
+var $=function(id){return document.getElementById(id)};
+var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+var f=function(n){return n==null||isNaN(n)?"—":Math.round(n).toLocaleString("en-US")};
+var f1=function(n){return n==null||isNaN(n)?"—":(Math.round(n*10)/10).toLocaleString("en-US")};
+var bd=function(t){return'<bdi dir="ltr">'+t+"</bdi>"};
+var pc=function(a,b){return b?bd(Math.round(a/b*100)+"%"):"—"};
+var pc1=function(a,b){return b?bd((Math.round(a/b*1000)/10).toFixed(1)+"%"):"—"};
+var rate=function(a,b){return b?a/b*100:null};
+var sum=function(a,fn){return a.reduce(function(s,x){return s+(fn?fn(x):x)},0)};
+var MN=["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+function normYM(x){
+  if(x instanceof Date&&!isNaN(x))return x.getFullYear()+"-"+("0"+(x.getMonth()+1)).slice(-2);
+  var t=String(x==null?"":x).trim(),m=t.match(/^(\d{4})[-\/](\d{1,2})/);
+  if(m)return m[1]+"-"+("0"+m[2]).slice(-2);
+  if(t&&/[A-Za-z]{3}/.test(t)){var d=new Date(t);if(!isNaN(d))return normYM(d)}
+  return "";
+}
+var ymLabel=function(ym){return ym?MN[+ym.slice(5)-1]+" "+ym.slice(0,4):""};
+var ymName=function(ym){return ym?MN[+ym.slice(5)-1]:""};
+var lastDay=function(ym){return new Date(+ym.slice(0,4),+ym.slice(5),0).getDate()};
+
+/* ---------- الوصول إلى اللوحات ---------- */
+var SRC={S:{id:"support",file:"support.html"},V:{id:"validation",file:"validation.html"},R:{id:"reporting",file:"non-reporting.html"}};
+function frameWin(k){
+  var s=SRC[k];
+  try{var ds=parent!==window&&parent.DASHBOARDS;if(ds){var d=ds.filter(function(x){return x.id===s.id})[0];if(d&&d.frame&&d.frame.contentWindow)return d.frame.contentWindow}}catch(e){}
+  if(!s.own){var i=document.createElement("iframe");i.style.cssText="position:absolute;width:1px;height:1px;border:0;visibility:hidden";i.src=s.file;document.body.appendChild(i);s.own=i}
+  return s.own.contentWindow;
+}
+function bridge(k){try{var w=frameWin(k);return w&&w.__deck&&w.__deck.ready()?w.__deck:null}catch(e){return null}}
+function waitReady(ms){
+  return new Promise(function(res){
+    var t0=Date.now();
+    (function tick(){
+      var ok={S:!!bridge("S"),V:!!bridge("V"),R:!!bridge("R")};
+      var n=(ok.S?1:0)+(ok.V?1:0)+(ok.R?1:0),dt=Date.now()-t0;
+      if(n===3||dt>ms||(n>0&&dt>12000))return res(ok);   // لا ننتظر مصدرًا متعثرًا أكثر من 12 ثانية بعد جاهزية غيره
+      setTimeout(tick,600);
+    })();
+  });
+}
+
+/* ---------- جمع البيانات ---------- */
+var months=[],sel="",X=null,sCache={},rCache={};
+function collectMonths(){
+  var set={},b;
+  if(b=bridge("V")){try{(b.data().months||[]).forEach(function(m){var k=normYM(m.m);if(k)set[k]=1})}catch(e){}}
+  if(b=bridge("S")){try{(b.state().data.filterOptions.availableMonths||[]).forEach(function(m){var k=normYM(m);if(k)set[k]=1});
+    ((b.state().data.analytics||{}).monthly||[]).forEach(function(m){var k=normYM(m.month);if(k)set[k]=1})}catch(e){}}
+  return Object.keys(set).sort();
+}
+function supportMonth(ym){
+  if(sCache[ym])return sCache[ym];
+  var b=bridge("S");if(!b)return Promise.resolve(null);
+  return sCache[ym]=b.call("analytics",{dateFrom:ym+"-01",dateTo:ym+"-"+lastDay(ym)}).catch(function(e){delete sCache[ym];return null});
+}
+function loadReporting(){
+  var b=bridge("R");if(!b)return Promise.resolve(null);
+  var norm=function(s){return String(s||"").replace(/[\s_\-]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").toLowerCase()};
+  var tabs=b.tabs();
+  var pick=function(key){return tabs.filter(function(t){return norm(t.name).indexOf(key)>-1})[0]};
+  var jobs={rep:pick("عدمالابلاغ"),img:pick("عدمارسال")};
+  return Promise.all(["rep","img"].map(function(k){
+    var t=jobs[k];if(!t)return null;
+    if(rCache[t.gid])return rCache[t.gid];
+    return rCache[t.gid]=b.load(t).catch(function(){delete rCache[t.gid];return null});
+  })).then(function(r){return{rep:r[0],img:r[1]}});
+}
+function collect(ym){
+  var i=months.indexOf(ym),list=months.slice(Math.max(0,i-2),i+1);
+  var o={ym:ym,list:list,prev:list.length>1?list[list.length-2]:null,S:{},V:bridge("V")?bridge("V").data():null,R:null,hasS:!!bridge("S")};
+  return Promise.all(list.map(function(m){return supportMonth(m).then(function(a){o.S[m]=a})}).concat([loadReporting().then(function(r){o.R=r})])).then(function(){return o});
+}
+
+/* ---------- حسابات Validation ---------- */
+function vOps(D,m,sec){return D.O.filter(function(r){return r.m===m&&(!sec||r.sec===sec)})}
+function vUnc(D,m){return D.U.filter(function(r){return r.m===m})}
+var vn=function(rows,fn){return rows.reduce(function(s,r){return s+((!fn||fn(r))?r.n:0)},0)};
+function vDays(D,key,m){return (D.days&&D.days[key==="unc"?"unc":"ops"]||{})[key==="unc"?m:key+"|"+m]||0}
+function vMonth(D,m){
+  var d=vn(vOps(D,m,"delivery")),c=vn(vOps(D,m,"cancel")),u=vn(vUnc(D,m));
+  var dd=vDays(D,"delivery",m),cd=vDays(D,"cancel",m),ud=vDays(D,"unc",m);
+  var days=Math.max(dd,cd,ud);
+  return{m:m,del:d,can:c,unc:u,tot:d+c+u,delDays:dd,canDays:cd,uncDays:ud,
+    avgTot:days?(d+c+u)/days:null,avgDel:(dd||cd)?(d+c)/Math.max(dd,cd):null,avgUnc:ud?u/ud:null,days:days};
+}
+function groupBy(rows,kf){var g={};rows.forEach(function(r){var k=kf(r);(g[k]||(g[k]=[])).push(r)});return g}
+function resp(rows){var res=vn(rows,function(r){return r.fin==="responded"}),nor=vn(rows,function(r){return r.fin==="noresp"});return{tot:vn(rows),res:res,nor:nor}}
+var isReady=function(s){return/جاهز/.test(s||"")},isPost=function(s){return/[تط]أجيل|تاجيل|تأجيل/.test(s||"")},isCancel=function(s){return/[اإأ]لغاء|الغاء/.test(s||"")};
+function outcomes(rows){
+  var r=rows.filter(function(x){return x.fin==="responded"});
+  var a=vn(r,function(x){return isReady(x.sol)}),b=vn(r,function(x){return !isReady(x.sol)&&isPost(x.sol)}),c=vn(r,function(x){return !isReady(x.sol)&&!isPost(x.sol)&&isCancel(x.sol)});
+  var t=vn(r);return{ready:a,post:b,cancel:c,other:t-a-b-c,tot:t,fake:vn(r,function(x){return x.fake})};
+}
+
+/* ---------- حسابات Support ---------- */
+function sMonthRow(a,ym){
+  if(!a)return null;
+  var m=(a.monthly||[]).filter(function(x){return normYM(x.month)===ym})[0];
+  if(m)return m;
+  var rows=a.employeeOutcome||[],g=function(k){return sum(rows,function(r){return r[k]||0})};
+  return{total:a.team&&a.team.total||g("total"),resolved:g("resolved"),unresolved:g("unresolved"),confirmed:g("confirmed"),notConfirmed:g("notConfirmed")};
+}
+var okRate=function(r){return rate((r.resolved||0)+(r.confirmed||0),r.total)};   // مؤشر الحل في الشيت = تم الحل + تم التأكيد ÷ الإجمالي
+
+/* ---------- حسابات عدم الإبلاغ ---------- */
+function rptRows(t,ym){
+  if(!t)return null;
+  return t.ROWS.filter(function(r){var k=r.date?normYM(r.date):normYM(r.month);return k===ym});
+}
+function rv(t,r,k){return t.C[k]>-1?String(r.v[t.C[k]]==null?"":r.v[t.C[k]]).trim():""}
+function topCount(rows,fn,n){
+  var m={};rows.forEach(function(r){var k=fn(r)||"(فارغ)";m[k]=(m[k]||0)+1});
+  return Object.keys(m).map(function(k){return[k,m[k]]}).sort(function(a,b){return b[1]-a[1]}).slice(0,n||999);
+}
+
+/* ---------- مكونات الرسم ---------- */
+function vbars(cats,series,o){
+  o=o||{};var mx=o.max||Math.max.apply(null,[1].concat(series.reduce(function(a,s){return a.concat(s.vals.filter(function(v){return v!=null}))},[])));
+  var fm=o.fmt||f;
+  var h='<div class="vw"><div class="vb">'+cats.map(function(c,i){
+    return'<div class="vg"><div class="vcols">'+series.map(function(s){var v=s.vals[i];return'<div class="vc" style="height:'+(v==null?0:Math.max(v/mx*100,0.5))+'%;background:'+s.color+'"><b>'+(v==null?"—":fm(v))+'</b></div>'}).join("")+'</div><div class="vl">'+esc(c)+'</div></div>'}).join("")+'</div>';
+  if(series.length>1&&series[0].name)h+='<div class="lg">'+series.map(function(s){return'<span><i style="background:'+s.color+'"></i>'+esc(s.name)+'</span>'}).join("")+'</div>';
+  return h+'</div>';
+}
+function hbars(rows,o){
+  o=o||{};var mx=o.max||Math.max.apply(null,[1].concat(rows.map(function(r){return r.v})));
+  return rows.map(function(r){return'<div class="hr"><div class="hl">'+esc(r.l)+'</div><div class="ht"><i style="width:'+Math.max(r.v/mx*100,0.5)+'%;background:'+(r.c||"var(--navy)")+'"></i></div><div class="hv">'+(r.t==null?f(r.v):r.t)+'</div></div>'}).join("");
+}
+function stacked(a,b,ca,cb){  // شريط مكدّس 100% (تم الرد / لم يتم الرد)
+  var t=a+b||1;return'<div class="st"><i style="width:'+a/t*100+'%;background:'+ca+'">'+(a/t>.08?f(a)+" ("+pc(a,t)+")":"")+'</i><i style="width:'+b/t*100+'%;background:'+cb+'">'+(b/t>.08?f(b)+" ("+pc(b,t)+")":"")+'</i></div>';
+}
+function table(heads,rows,tot,o){
+  o=o||{};
+  var th=heads.map(function(h){return'<th'+(h.c?' class="'+h.c+'"':"")+'>'+h.h+'</th>'}).join("");
+  var tr=rows.map(function(r){return'<tr>'+r.map(function(c,i){return'<td'+(heads[i]&&heads[i].red&&heads[i].red(r)?' class="red"':"")+'>'+c+'</td>'}).join("")+'</tr>'}).join("");
+  if(tot)tr+='<tr class="tot">'+tot.map(function(c){return'<td>'+c+'</td>'}).join("")+'</tr>';
+  return'<table class="tb'+(o.sm||rows.length>11?" sm":"")+'"><thead><tr>'+th+'</tr></thead><tbody>'+tr+'</tbody></table>';
+}
+var kb=function(n,l,s,c,st){return'<div class="kb '+(c||"")+'"'+(st?' style="'+st+'"':"")+'><div class="n">'+n+'</div><div class="l">'+l+'</div>'+(s?'<div class="s">'+s+'</div>':"")+'</div>'};
+var na=function(m){return'<div class="na">'+m+'</div>'};
+function sl(o){return{cls:o.cls||"",html:'<section class="sl '+(o.cls||"")+'">'+(o.tag?'<div class="tag">'+o.tag+'</div>':"")+(o.title?'<h2>'+o.title+'</h2>':"")+(o.sub?'<div class="sub">'+o.sub+'</div>':"")+'<div class="body">'+(o.body||"")+'</div>'+(o.nofoot?"":'<div class="ft"><span>Fleet Support — Control Tower | تقرير إلى الإدارة التنفيذية</span><span class="pg"></span></div>')+'</section>',title:o.nav||o.title||""}}
+
+/* =====================================================================
+   الشرائح — كل دالة تُرجع شريحة أو null (تُخفى لو مصدرها غير متاح)
+   ===================================================================== */
+function slides(X){
+  var L=[],ym=X.ym,lab=ymLabel(ym),V=X.V,cur=X.S[ym],prevYM=X.prev,prevS=prevYM?X.S[prevYM]:null;
+  var add=function(s){if(s)L.push(s)};
+  var tagS="Fleet Support — "+lab,tagV="Fleet Support — Validation | "+lab;
+  var vm=V?vMonth(V,ym):null,vp=V&&prevYM?vMonth(V,prevYM):null;
+  var ct=cur?(cur.team&&cur.team.total!=null?cur.team.total:(sMonthRow(cur,ym)||{}).total):null;
+
+  /* 1) الغلاف */
+  add(sl({cls:"dark cover",nofoot:1,nav:"الغلاف",body:'<div class="cv"><h1>تقرير أداء فريق Fleet Support</h1><p>Validation — Control Tower</p><p class="by">مقدَّم إلى: الإدارة التنفيذية &nbsp;|&nbsp; مقدَّم من: إدارة قسم المتابعة</p><div class="mo">'+lab+'</div></div>'}));
+
+  /* 2) قسم Fleet Support يتكوّن من فريقين */
+  if(vm||ct!=null){
+    var all=(vm?vm.tot:0)+(ct||0);
+    add(sl({tag:tagS,title:"قسم Fleet Support يتكوّن من فريقين",nav:"نظرة عامة على القسم",body:
+      '<div class="col" style="height:100%"><div class="kb navy" style="padding:18px"><div class="n" style="font-size:54px">'+f(all)+'</div><div class="l">إجمالي حالات قسم Fleet Support خلال '+lab+'</div></div>'+
+      '<div class="row" style="height:210px">'+
+        '<div class="kb fill"><div class="l" style="font-size:20px;font-weight:800">Validation</div><div class="n" style="font-size:54px">'+(vm?pc(vm.tot,all):"—")+'</div><div class="l">'+(vm?f(vm.tot)+" حالة خلال "+ymName(ym):"غير متاح")+'</div><div class="s">مراجعة الشحنات المسجَّل عليها «مشكلة في التسليم» أو الإلغاءات أو عدم التأكيد والتواصل مع العملاء</div></div>'+
+        '<div class="kb fill"><div class="l" style="font-size:20px;font-weight:800">Control Tower</div><div class="n" style="font-size:54px">'+(ct!=null?pc(ct,all):"—")+'</div><div class="l">'+(ct!=null?f(ct)+" حالة خلال "+ymName(ym):"غير متاح")+'</div><div class="s">متابعة وحل وتأكيد حالات التسليم المُبلَّغ عنها من المناديب</div></div></div>'+
+      (vm?'<ul class="bl"><li>مشاكل التسليم: <b>'+f(vm.del)+'</b> شهريًا (daily avg <b>'+f(vm.delDays?vm.del/vm.delDays:null)+'</b>)</li><li>الإلغاءات: <b>'+f(vm.can)+'</b> شهريًا (daily avg <b>'+f(vm.canDays?vm.can/vm.canDays:null)+'</b>)</li><li>حالات لم يتم تأكيدها: <b>'+f(vm.unc)+'</b> (daily avg <b>'+f(vm.avgUnc)+'</b>)</li><li>إجمالي Validation daily avg: <b>'+f(vm.avgTot)+'</b>'+(cur&&cur.team&&cur.team.avgPerActiveDay?' &nbsp;|&nbsp; Control Tower daily avg: <b>'+f(cur.team.avgPerActiveDay)+'</b>':"")+'</li></ul>':"")+'</div>'}));
+  }
+
+  /* ===== Control Tower ===== */
+  if(cur){
+    add(sl({cls:"steel",nofoot:1,nav:"Control Tower",body:'<div class="divider">Control Tower</div>'}));
+    add(sl({tag:"عن الفريق",title:"دور فريق Control Tower",nav:"دور فريق Control Tower",body:
+      '<div class="kb navy" style="padding:16px 22px;margin-bottom:18px"><div class="l" style="font-size:17px">يقدّم الفريق دعمًا لحظيًا للمناديب أثناء تنفيذ عمليات التسليم؛ لرفع معدل نجاح التسليم وتقليل حالات الفشل التي يمكن حلها فورًا.</div></div>'+
+      '<div class="row" style="height:300px">'+[["1","استقبال المشكلات","استقبال طلبات المتابعة من المناديب عبر واتساب فور حدوثها"],["2","مراجعة الشحنة وتحديد السبب","مراجعة بيانات الشحنة على النظام وتحديد نوع المشكلة والطرف المطلوب التواصل معه"],["3","التواصل وإبلاغ القرار","التواصل مع الراسل أو المرسل إليه، ثم إبلاغ المندوب بالحل بشكل واضح ومحدد"],["4","التوثيق والتصعيد","تحديث حالة الشحنة والملاحظات على النظام والشيت، وتصعيد ما يخرج عن الصلاحيات لقائد الفريق"]].map(function(s){
+        return'<div class="box fill" style="text-align:center"><div style="width:42px;height:42px;border-radius:50%;background:var(--gold);color:#fff;font-weight:800;font-size:20px;line-height:42px;margin:0 auto 10px">'+s[0]+'</div><h4>'+s[1]+'</h4><div class="note">'+s[2]+'</div></div>'}).join("")+'</div>'}));
+
+    /* 5) حجم الحالات شهريًا */
+    var mrows=X.list.map(function(m){var r=sMonthRow(X.S[m],m);return r?{m:m,t:r.total}:null}).filter(Boolean);
+    if(mrows.length){
+      var first=mrows[0],last=mrows[mrows.length-1],chg=first.t&&mrows.length>1?(last.t-first.t)/first.t*100:null;
+      add(sl({tag:"الفروقات الشهرية",title:"حجم الحالات: "+mrows.map(function(r){return ymName(r.m)}).join(" و"),nav:"حجم الحالات شهريًا",body:
+        '<div class="row" style="height:100%"><div class="fill">'+vbars(mrows.map(function(r){return ymName(r.m)}),[{vals:mrows.map(function(r){return r.t}),color:"var(--navy)"}])+'</div>'+
+        '<div class="col" style="width:340px">'+(chg!=null?kb((chg>0?"+":"−")+f1(Math.abs(chg))+"%","التغيّر من "+ymName(first.m)+" ("+f(first.t)+") إلى "+ymName(last.m)+" ("+f(last.t)+")","","navy"):kb("—","لا يوجد شهر سابق للمقارنة","","navy"))+
+        '<div class="box fill"><h4>ملاحظة</h4><div class="note">الأرقام محسوبة من لوحة Fleet Support لكل شهر على حدة. أسباب التغيّر (إيقاف أو إعادة العمل على أنواع حالات) تُضاف يدويًا حسب قرارات التشغيل.</div></div></div></div>'}));
+    }
+
+    /* 6) الفروع المرسِلة في كل فترة */
+    var hr=((cur.periods||{}).hour||{}).rows||[];
+    if(hr.length&&sum(hr,function(r){return r.total})){
+      var T=sum(hr,function(r){return r.total}),pk=hr.filter(function(r){return r.isPeak});
+      add(sl({tag:tagS,title:"الفروع المرسِلة في كل فترة — "+lab,nav:"الفروع المرسِلة حسب الفترة",body:
+        '<div class="row" style="height:380px">'+hr.map(function(r){
+          return'<div class="col fill" style="gap:8px"><div class="kb navy sm" style="padding:8px"><div class="n" style="font-size:20px">'+esc(String(r.label).replace(/\s*\(.*\)$/,""))+'</div></div><div class="kb" style="padding:8px"><div class="n" style="font-size:30px">'+f(r.total)+'</div><div class="s">شحنة ('+pc(r.total,T)+')</div></div>'+
+          '<div class="box fill" style="background:#FAF3E0;border-color:#EBD9A6;padding:8px 10px;font-size:12.5px;line-height:1.7">'+(r.topBranches||[]).slice(0,3).map(function(b,i){return(i+1)+". "+esc(b.name)+" <b>"+f(b.total)+"</b> ("+pc(b.total,r.total)+")"}).join("<br>")+'</div></div>'}).join("")+'</div>'+
+        (pk.length?'<div class="kb navy" style="margin-top:14px;padding:12px;flex-direction:row;gap:14px;justify-content:center"><span class="l">فترة الضغط: '+pk.map(function(r){return esc(String(r.label).replace(/\s*\(.*\)$/,""))+" — "+f(r.total)+" حالة ("+pc(r.total,T)+")"}).join(" و ")+'</span></div>':"")+
+        '<div class="note" style="margin-top:8px">الفترات محسوبة من وقت تسجيل الحالة (Record ID) في لوحة Fleet Support.</div>'}));
+    }
+
+    /* 7) نسبة الحل لكل موظفة: شهر سابق مقابل الحالي */
+    var eo=(cur.employeeOutcome||[]).filter(function(r){return r.total>0});
+    if(eo.length){
+      if(prevS&&prevS.employeeOutcome){
+        var pm={};prevS.employeeOutcome.forEach(function(r){pm[r.name]=r});
+        var top=eo.slice().sort(function(a,b){return b.total-a.total}).slice(0,6).filter(function(r){return pm[r.name]});
+        if(top.length){
+          var dec=top.map(function(r){return{n:r.name,a:okRate(pm[r.name]),b:okRate(r)}}).filter(function(x){return x.a!=null&&x.b!=null&&x.b<x.a-3});
+          add(sl({tag:"مقارنة شهرية — الموظفون",title:"نسبة الحل لكل موظف: "+ymName(prevYM)+" مقابل "+ymName(ym),nav:"نسبة الحل لكل موظف — مقارنة",body:
+            '<div style="height:400px">'+vbars(top.map(function(r){return r.name}),[{name:ymName(prevYM),color:"#C8D4F7",vals:top.map(function(r){var x=okRate(pm[r.name]);return x==null?null:Math.round(x)})},{name:ymName(ym),color:"var(--navy)",vals:top.map(function(r){var x=okRate(r);return x==null?null:Math.round(x)})}],{max:100,fmt:function(v){return v+"%"}})+'</div>'+
+            '<div class="note" style="margin-top:10px;color:var(--red)">'+(dec.length?"تراجعت نسبة الحل لدى: "+dec.map(function(x){return esc(x.n)+" ("+Math.round(x.a)+"% ← "+Math.round(x.b)+"%)"}).join("، ")+" — تستحق متابعة فردية.":"لا توجد موظفة تراجعت نسبتها بأكثر من 3 نقاط بين الشهرين.")+'</div><div class="note">نسبة الحل = (تم الحل + تم التأكيد) ÷ إجمالي حالات الموظفة. المعروض أعلى 6 موظفات حجمًا في '+ymName(ym)+'.</div>'}));
+        }
+      }
+      /* 8) جدول الموظفات */
+      var er=eo.slice().sort(function(a,b){return b.total-a.total});
+      var tt=function(k){return sum(er,function(r){return r[k]||0})};
+      var cell=function(n,t){return f(n)+" ("+pc(n,t)+")"};
+      add(sl({tag:tagS,title:"نسبة الحل لكل موظف خلال شهر "+lab,nav:"جدول نسبة الحل لكل موظفة",body:
+        table([{h:"الموظفة"},{h:"الإجمالي"},{h:"إجمالي الحل",c:"g3"},{h:"تم الحل",c:"g3"},{h:"لم يتم الحل",c:"g3"},{h:"إجمالي التأكيد",c:"g1"},{h:"تم التأكيد",c:"g1"},{h:"لم يتم التأكيد",c:"g1"}],
+          er.map(function(r){return[esc(r.name),f(r.total),cell((r.resolved||0)+(r.unresolved||0),r.total),cell(r.resolved||0,r.total),cell(r.unresolved||0,r.total),cell((r.confirmed||0)+(r.notConfirmed||0),r.total),cell(r.confirmed||0,r.total),cell(r.notConfirmed||0,r.total)]}),
+          ["الإجمالي",f(tt("total")),cell(tt("resolved")+tt("unresolved"),tt("total")),cell(tt("resolved"),tt("total")),cell(tt("unresolved"),tt("total")),cell(tt("confirmed")+tt("notConfirmed"),tt("total")),cell(tt("confirmed"),tt("total")),cell(tt("notConfirmed"),tt("total"))])}));
+    }
+
+    /* 9) مقارنة نسب تم الحل وتم التأكيد لكل شهر */
+    var mt=X.list.map(function(m){var r=sMonthRow(X.S[m],m);return r?{m:m,r:r}:null}).filter(Boolean);
+    if(mt.length){
+      var c2=function(n,t){return f(n)+"<br><small>("+pc(n,t)+")</small>"};
+      add(sl({tag:"Fleet Support — "+ymName(mt[0].m)+" إلى "+lab,title:"مقارنة نسب تم الحل ونسب تم التأكيد لكل شهر",nav:"مقارنة الحل والتأكيد شهريًا",body:
+        table([{h:"الشهر"},{h:"إجمالي المشاكل"},{h:"إجمالي الحل",c:"g3"},{h:"تم الحل",c:"g3"},{h:"لم يتم الحل",c:"g3"},{h:"إجمالي التأكيد",c:"g1"},{h:"تم التأكيد",c:"g1"},{h:"لم يتم التأكيد",c:"g1"}],
+          mt.map(function(x){var r=x.r,t=r.total;return[ymName(x.m),f(t),c2((r.resolved||0)+(r.unresolved||0),t),c2(r.resolved||0,t),c2(r.unresolved||0,t),c2((r.confirmed||0)+(r.notConfirmed||0),t),c2(r.confirmed||0,t),c2(r.notConfirmed||0,t)]}))+
+        '<div class="note" style="margin-top:14px">«الحل» و«التأكيد» تصنيفان لنوع المشكلة كما في لوحة Fleet Support (حل: تجزئة، استبدال، تحويل تكلفة…؛ تأكيد: رفض ورفض، رفض ودفع، تهرب…). النسب من إجمالي حالات الشهر.</div>'}));
+    }
+
+    /* 10) أكبر 6 أنواع مشاكل + 11) نسب الحل لكل نوع */
+    var pt=(cur.problemTypes||[]).filter(function(r){return r.total>0});
+    if(pt.length){
+      var P6=pt.slice(0,6),tot6=sum(P6,function(r){return r.total}),T2=cur.team&&cur.team.total||sum(pt,function(r){return r.total});
+      add(sl({tag:tagS,title:"أكبر "+P6.length+" أنواع مشاكل — "+lab,nav:"أكبر أنواع المشاكل",sub:"إجمالي المشاكل "+f(T2)+" شحنة | أكبر "+P6.length+" تمثل "+pc(tot6,T2)+" ("+f(tot6)+" شحنة) | باقي الأنواع ("+(pt.length-P6.length)+" نوع): "+f(T2-tot6)+" شحنة ("+pc(T2-tot6,T2)+")",body:
+        '<div style="padding-top:14px">'+hbars(P6.map(function(r,i){return{l:r.name,v:r.total,t:f(r.total)+" ("+pc(r.total,T2)+")",c:i<3?"var(--navy)":"var(--mid)"}}))+'</div>'}));
+      var P10=pt.slice(0,10),all=sum(pt,function(r){return r.total}),ok=sum(pt,function(r){return(r.resolved||0)+(r.confirmed||0)});
+      var low=P10.filter(function(r){return okRate(r)<60}),lowT=sum(low,function(r){return r.total}),lowF=sum(low,function(r){return r.total-(r.resolved||0)-(r.confirmed||0)}),allF=all-ok;
+      add(sl({tag:"تحليل المشكلات — "+ymName(ym),title:"نسبة الحل والتأكيد لكل نوع مشكلة",nav:"نسبة الحل والتأكيد لكل نوع",body:
+        '<div class="row" style="height:100%"><div class="fill" style="padding-top:6px">'+hbars(P10.map(function(r){var x=okRate(r);return{l:r.name+" — "+f(r.total),v:x||0,t:(x==null?"—":f1(x)+"%"),c:x!=null&&x<60?"var(--red)":"var(--navy)"}}),{max:100})+'</div>'+
+        '<div class="col" style="width:330px">'+kb(pc(ok,all),"نسبة الحل والتأكيد الإجمالية في "+ymName(ym)+" — "+f(ok)+" من "+f(all)+" حالة","","navy")+
+        (low.length?'<div class="box pink"><h4>'+low.length+' أنواع أقل من 60%</h4><div class="note">'+low.map(function(r){return esc(r.name)}).join("، ")+": "+pc(lowT,all)+" من الحالات، وفيها "+pc(lowF,allF)+" من حالات عدم الحل ("+f(lowF)+" من "+f(allF)+")</div></div>":'<div class="box"><h4>كل الأنواع المعروضة ≥ 60%</h4></div>')+
+        '<div class="note">مؤشر الحل = تم الحل + تم التأكيد ÷ إجمالي حالات النوع نفسه. الأحمر = أقل من 60%. المعروض أعلى '+P10.length+' أنواع.</div></div></div>'}));
+    }
+
+    /* 12) حجم الحالات بالفرع */
+    if(prevS&&prevS.branchOutcome&&cur.branchOutcome){
+      var pb={};prevS.branchOutcome.forEach(function(r){pb[r.name]=r.total});
+      var tb=cur.branchOutcome.slice().sort(function(a,b){return b.total-a.total}).slice(0,6);
+      if(tb.length){
+        var inc=tb.map(function(r){return{n:r.name,a:pb[r.name]||0,b:r.total,d:r.total-(pb[r.name]||0)}}).sort(function(a,b){return b.d-a.d});
+        add(sl({tag:"مقارنة شهرية — الفروع",title:"حجم الحالات بالفرع: "+ymName(prevYM)+" مقابل "+ymName(ym),nav:"حجم الحالات بالفرع — مقارنة",body:
+          '<div style="height:410px">'+vbars(tb.map(function(r){return r.name}),[{name:ymName(prevYM),color:"#C8D4F7",vals:tb.map(function(r){return pb[r.name]||0})},{name:ymName(ym),color:"var(--navy)",vals:tb.map(function(r){return r.total})}])+'</div>'+
+          '<div class="note" style="margin-top:10px">أعلى فرق: '+esc(inc[0].n)+" ("+f(inc[0].a)+" ← "+f(inc[0].b)+") — المعروض أعلى 6 فروع حجمًا في "+ymName(ym)+".</div>"}));
+      }
+    }
+  }
+
+  /* ===== عدم الإبلاغ ===== */
+  if(X.R&&(X.R.rep||X.R.img)){
+    var rr=rptRows(X.R.rep,ym);
+    if(rr&&ct!=null){
+      var nr=rr.length,ta=ct+nr;
+      add(sl({tag:"أولًا: تقرير عدم الإبلاغ — "+ymName(ym),title:"رصد الحالات التي لم يتم الإبلاغ بها من خلال المناديب على جروبات المتابعة واتساب",nav:"تقرير عدم الإبلاغ",body:
+        '<div class="row" style="height:100%"><div class="fill"><div class="vb" style="padding:0 60px"><div class="vg"><div class="vcols"><div class="vc" style="max-width:120px;height:'+ct/ta*100+'%;background:var(--navy)"><b>'+f(ct)+'</b></div></div><div class="vl">الحجم الفعلي</div></div><div class="vg"><div class="vcols" style="flex-direction:column-reverse;align-items:center;gap:0"><div class="vc" style="max-width:120px;width:100%;flex:none;height:'+ct/ta*100+'%;background:var(--navy);border-radius:0"><b style="top:50%;color:#fff;transform:translate(-50%,-50%)">'+f(ct)+'</b></div><div class="vc" style="max-width:120px;width:100%;flex:none;height:'+nr/ta*100+'%;background:var(--gold)"><b style="top:50%;transform:translate(-50%,-50%)">'+f(nr)+'</b></div></div><div class="vl">لو تم الإبلاغ عن كل الحالات</div></div></div></div>'+
+        '<div class="col" style="width:380px">'+kb(f(ta),"إجمالي الأوردرات لو تم الإبلاغ عن كل الحالات في "+ymName(ym),"","navy")+'<div class="row">'+kb(pc(ct,ta)+"<br><span style='font-size:22px'>"+f(ct)+"</span>","أوردر تم إبلاغه على جروب الواتساب","","",'flex:1')+kb(pc(nr,ta)+"<br><span style='font-size:22px'>+"+f(nr)+"</span>","حالة عدم إبلاغ (أُغلقت على السيستم فقط)","","gold",'flex:1')+'</div>'+
+        '<div class="note">عدد المُبلَّغ = حالات Control Tower في '+ymName(ym)+'؛ عدم الإبلاغ = سجلات تاب «عدم الإبلاغ» في الشهر نفسه. التزام المناديب بالإرسال سيرفع الحالات المطلوب العمل عليها ويستلزم إعادة قياس طاقة الفريق.</div></div></div>'}));
+      if(nr){
+        var tbr=topCount(rr,function(r){return rv(X.R.rep,r,"branch")},8),tdr=topCount(rr,function(r){return rv(X.R.rep,r,"rep")+" — "+rv(X.R.rep,r,"branch")},5);
+        add(sl({tag:"أولًا: تقرير عدم الإبلاغ — "+ymName(ym),title:"أكثر فروع ومناديب عدم إرسال للحالات على جروب الواتساب",nav:"أكثر الفروع والمناديب — عدم الإبلاغ",body:
+          '<div class="row" style="height:100%"><div class="fill"><div class="note" style="margin-bottom:8px">أعلى الفروع (النسبة من إجمالي عدم الإبلاغ: '+f(nr)+')</div>'+hbars(tbr.map(function(x){return{l:x[0],v:x[1],t:f(x[1])+" ("+pc(x[1],nr)+")"}}))+'</div>'+
+          '<div class="box pink" style="width:430px"><h4>أكثر 5 مناديب تكرارًا في عدم الإرسال</h4>'+tdr.map(function(x){return'<div class="box" style="margin-bottom:8px;background:#fff;padding:8px 12px;font-size:14px"><b>'+esc(x[0].split(" — ")[0])+'</b><br><span class="note">فرع '+esc(x[0].split(" — ").slice(1).join(" — "))+" — "+f(x[1])+" حالة ("+pc(x[1],nr)+')</span></div>'}).join("")+'</div></div>'}));
+      }
+    }
+    var ir=rptRows(X.R.img,ym);
+    if(ir){
+      var ni=ir.length;
+      var byDay={};ir.forEach(function(r){if(r.date){var k=r.date.getDate();byDay[k]=(byDay[k]||0)+1}});
+      var days=Object.keys(byDay).map(Number).sort(function(a,b){return a-b});
+      add(sl({tag:"ثانيًا: تقرير عدم إرسال صورة المرتجع — "+ymName(ym),title:"عدم إرسال صورة المرتجع مع الحالة على جروب الواتساب",nav:"عدم إرسال صورة المرتجع",body:
+        '<div class="row" style="height:100%"><div class="fill">'+(days.length?'<div style="height:400px">'+vbars(days.map(function(d){return d+"/"+ym.slice(5)}),[{vals:days.map(function(d){return byDay[d]}),color:"var(--red)"}]).replace(/<div class="vl">/g,'<div class="vl" style="font-size:10px">')+'</div>':na("لا توجد تواريخ صالحة في سجلات التاب"))+'</div>'+
+        '<div class="col" style="width:340px">'+kb(f(ni),"حالة أُبلغت دون إرفاق صورة المرتجع المطلوبة في "+ymName(ym),"","red")+'<div class="box"><h4>ملاحظة</h4><div class="note">العدد من تاب «عدم إرسال صورة». نسبته من إجمالي الحالات التي طُلبت فيها الصورة غير متاحة في اللوحات (تحتاج مصدر الحالات المطلوبة).</div></div></div></div>'}));
+      if(ni){
+        var ib=topCount(ir,function(r){return rv(X.R.img,r,"branch")},7),id=topCount(ir,function(r){return rv(X.R.img,r,"rep")+" — "+rv(X.R.img,r,"branch")},5);
+        add(sl({tag:"تقرير عدم إرسال صورة المرتجع — "+ymName(ym),title:"أكثر فروع ومناديب عدم إرسال صورة مرتجع",nav:"أكثر الفروع والمناديب — صور المرتجع",body:
+          '<div class="row" style="height:100%"><div class="fill">'+hbars(ib.map(function(x){return{l:x[0],v:x[1],t:f(x[1])+" ("+pc(x[1],ni)+")",c:"var(--red)"}}))+'</div>'+
+          '<div class="box pink" style="width:430px"><h4>أكثر 5 مناديب تكرارًا</h4>'+id.map(function(x){return'<div class="box" style="margin-bottom:8px;background:#fff;padding:8px 12px;font-size:14px"><b>'+esc(x[0].split(" — ")[0])+'</b><br><span class="note">فرع '+esc(x[0].split(" — ").slice(1).join(" — "))+" — "+f(x[1])+" حالة ("+pc(x[1],ni)+')</span></div>'}).join("")+'</div></div>'}));
+      }
+    }
+  }
+
+  /* ===== Validation ===== */
+  if(V&&vm&&vm.tot){
+    add(sl({cls:"steel",nofoot:1,nav:"Validation",body:'<div class="divider">Validation</div>'}));
+    /* 18) إجمالي الأوردرات شهريًا */
+    var ms=[vp,vm].filter(Boolean);
+    var pcell=function(n,t){return f(n)+"<br><small>"+pc1(n,t)+"</small>"};
+    add(sl({tag:"Fleet Support",title:"قسم Validation | متابعة مشاكل التسليم – الإلغاءات – حالات عدم التأكيد",nav:"Validation — الإجمالي الشهري",body:
+      '<div class="note" style="margin-bottom:6px;font-weight:700;color:var(--ink)">إجمالي الأوردرات التي تم العمل عليها من المراجعة شهريًا</div>'+
+      table([{h:"الشهر"},{h:"الإلغاءات"},{h:"مشكلة في التسليم"},{h:"حالات لم يتم تأكيدها"},{h:"إجمالي الأوردرات"}],ms.map(function(m){return[ymName(m.m),pcell(m.can,m.tot),pcell(m.del,m.tot),pcell(m.unc,m.tot),pcell(m.tot,m.tot)]}))+
+      '<div class="note" style="margin:18px 0 6px;font-weight:700;color:var(--ink)">المتوسط اليومي للأوردرات التي تم العمل عليها (على الأيام الفعلية للعمل)</div>'+
+      table([{h:"الشهر"},{h:"مشكلة في التسليم + إلغاءات / يوم"},{h:"حالات لم يتم تأكيدها / يوم"},{h:"إجمالي الأوردرات / يوم"}],ms.map(function(m){return[ymName(m.m),f(m.avgDel),f(m.avgUnc),f(m.avgTot)]}))}));
+
+    /* 19) نسبة الرد في كل Round */
+    var R=V.rounds,opsAll=vOps(V,ym).filter(function(r){return r.sec==="delivery"||r.sec==="cancel"});
+    var rnd=groupBy(opsAll,function(r){return String(r.rnd).replace(/\D/g,"")});
+    var haveR=Object.keys(rnd).filter(function(k){return k}).length>0;
+    if(haveR){
+      var labs=(R&&R.labels)||[],keys=["1","2","3","4","5"].filter(function(k){return rnd[k]});
+      var allS=resp(opsAll);
+      add(sl({tag:"Fleet Support — Validation",title:"نسبة الرد في كل Round — "+lab,nav:"نسبة الرد في كل Round",sub:"إجمالي الأوردرات (مشاكل تسليم وإلغاءات): "+f(allS.tot)+" | تم الرد: "+f(allS.res)+" ("+pc(allS.res,allS.res+allS.nor)+") | لم يتم الرد: "+f(allS.nor)+" ("+pc(allS.nor,allS.res+allS.nor)+")",body:
+        '<div style="height:410px">'+vbars(keys.map(function(k){return"Round "+k+(labs[+k-1]?" ("+labs[+k-1]+")":"")}),[{name:"تم الرد",color:"var(--teal)",vals:keys.map(function(k){var s=resp(rnd[k]);return s.res})},{name:"لم يتم الرد",color:"var(--red)",vals:keys.map(function(k){var s=resp(rnd[k]);return s.nor})}])+'</div>'+
+        '<div class="note" style="margin-top:8px">'+keys.map(function(k){var s=resp(rnd[k]);return"Round "+k+": "+pc(s.res,s.res+s.nor)+" رد"}).join(" | ")+" — النسب = تم الرد ÷ (تم الرد + لم يتم الرد)."+'</div>'}));
+    } else if(R&&R.byMonth){
+      var rm=R.byMonth.filter(function(x){return normYM(x.m)===ym})[0];
+      if(rm)add(sl({tag:"Fleet Support — Validation",title:"توزيع الشغل على الجولات (Rounds) — "+lab,nav:"توزيع الجولات",body:
+        '<div style="height:400px">'+vbars((R.labels||[]).map(function(l,i){return"Round "+(i+1)+" ("+l+")"}),[{vals:rm.r,color:"var(--navy)"}])+'</div><div class="note" style="margin-top:10px">عمود Round غير مُعبّأ في «مشاكل تسليم» بالمصدر، لذلك نسبة الرد لكل جولة غير متاحة؛ المعروض عدد شغل كل جولة من ورقة round.</div>'}));
+    }
+
+    /* ===== مشاكل التسليم ===== */
+    var dl=vOps(V,ym,"delivery");
+    if(dl.length){
+      add(sl({cls:"dark",nofoot:1,nav:"أولًا: مشاكل التسليم",body:'<div class="divider">أولًا : مشاكل تسليم</div>'}));
+      var dS=resp(dl),byE=groupBy(dl,function(r){return r.emp});
+      var er2=Object.keys(byE).map(function(k){var s=resp(byE[k]);return{n:k,tot:s.tot,res:s.res,nor:s.nor}}).sort(function(a,b){return b.tot-a.tot});
+      var bestE=er2.slice().filter(function(x){return x.res+x.nor>0}).sort(function(a,b){return b.res/(b.res+b.nor)-a.res/(a.res+a.nor)})[0];
+      add(sl({tag:"مشاكل تسليم — مراجعة",title:"نسبة الرد وعدم الرد — "+ymName(ym)+" (عدد الأوردرات "+f(dS.tot)+")",nav:"نسبة الرد لكل موظفة — تسليم",body:
+        '<div class="lg" style="justify-content:flex-start;margin:0 0 8px"><span><i style="background:var(--teal)"></i>تم الرد '+f(dS.res)+'</span><span><i style="background:var(--red)"></i>لم يتم الرد '+f(dS.nor)+'</span></div>'+
+        er2.slice(0,12).map(function(e){return'<div class="hr" style="margin-bottom:7px"><div class="hl" style="width:150px">'+esc(e.n)+'</div><div class="hl" style="width:60px;text-align:center;font-weight:400">'+f(e.tot)+'</div>'+stacked(e.res,e.nor,"var(--teal)","var(--red)")+'</div>'}).join("")+
+        '<div class="hr"><div class="hl" style="width:150px">الإجمالي</div><div class="hl" style="width:60px;text-align:center">'+f(dS.tot)+'</div>'+stacked(dS.res,dS.nor,"var(--teal)","var(--red)")+'</div>'+
+        (bestE?'<div class="kb gold" style="margin-top:8px;padding:6px;flex-direction:row;gap:12px;justify-content:center"><span class="l">أعلى موظفة هذا الشهر: '+esc(bestE.n)+" — نسبة الرد "+pc(bestE.res,bestE.res+bestE.nor)+" ("+f(bestE.res)+" من "+f(bestE.tot)+" أوردر)</span></div>":"")}));
+      /* 22) نتائج الرد حسب الفرع */
+      var byB=groupBy(dl,function(r){return r.br}),br=Object.keys(byB).map(function(k){var o=outcomes(byB[k]);o.n=k;return o}).filter(function(o){return o.tot}).sort(function(a,b){return b.tot-a.tot});
+      if(br.length){
+        var oT=outcomes(dl),shown=br.slice(0,15);
+        var c3=function(n,t){return f(n)+" ("+pc(n,t)+")"};
+        add(sl({tag:"نتائج الرد",title:"نتائج الرد حسب الفرع — "+lab,nav:"نتائج الرد حسب الفرع",sub:"الأوردرات التي تم الرد عليها: "+f(oT.tot)+" أوردر",body:
+          table([{h:"الفرع"},{h:"الإجمالي"},{h:"جاهز للاستلام",c:"g1"},{h:"تأجيل",c:"g2"},{h:"إلغاء الشحنة",c:"g3"}].concat(oT.other>0?[{h:"أخرى"}]:[]),
+            shown.map(function(o){return[esc(o.n),f(o.tot),c3(o.ready,o.tot),c3(o.post,o.tot),c3(o.cancel,o.tot)].concat(oT.other>0?[c3(o.other,o.tot)]:[])}),
+            ["الإجمالي",f(oT.tot),c3(oT.ready,oT.tot),c3(oT.post,oT.tot),c3(oT.cancel,oT.tot)].concat(oT.other>0?[c3(oT.other,oT.tot)]:[]))+
+          (br.length>15?'<div class="note">المعروض أعلى 15 فرعًا — الإجمالي يشمل كل الفروع.</div>':"")}));
+      }
+      /* 24) مشاكل التسليم شهر مقابل شهر */
+      if(vp){
+        var df=vm.del-vp.del;
+        add(sl({tag:tagV,title:"مشاكل التسليم — "+ymName(prevYM)+" مقابل "+ymName(ym),nav:"مشاكل التسليم — مقارنة",body:
+          '<div class="row" style="height:100%"><div class="fill">'+vbars([ymName(prevYM),ymName(ym)],[{vals:[vp.del,vm.del],color:"var(--navy)"}])+'</div><div class="col" style="width:340px">'+kb(f(vm.del),"مشكلة تسليم في "+ymName(ym),"","navy")+kb((df>0?"+":df<0?"−":"")+f(Math.abs(df)),(df>=0?"زيادة":"انخفاض")+" عن "+ymName(prevYM)+" ("+(vp.del?(df>0?"+":df<0?"−":"")+f1(Math.abs(df)/vp.del*100)+"%":"—")+")")+'</div></div>'}));
+      }
+      /* 25) إنتاجية حل مشاكل التسليم */
+      add(sl({tag:tagV,title:"تقرير إنتاجية حل مشاكل التسليم — "+lab,nav:"إنتاجية حل مشاكل التسليم",body:
+        '<div class="col" style="gap:12px"><div class="kb navy" style="width:340px;align-self:center;padding:10px"><div class="n" style="font-size:34px">100%</div><div class="l">إجمالي الأوردرات مشاكل التسليم: '+f(dS.tot)+'</div></div>'+
+        '<div class="note">من إجمالي الأوردرات ('+f(dS.tot)+')</div><div class="row" style="height:110px">'+kb(pc(dS.nor,dS.tot),"لم يتم الرد",f(dS.nor),"red","flex:1")+kb(pc(dS.res,dS.tot),"تم الرد",f(dS.res),"teal","flex:1")+'</div>'+
+        '<div class="note">من تم الرد ('+f(oT.tot)+')</div><div class="row" style="height:110px">'+kb(pc(oT.cancel,oT.tot),"إلغاء",f(oT.cancel),"red","flex:1")+kb(pc(oT.post,oT.tot),"تأجيل لأبعد من الغد",f(oT.post),"gold","flex:1")+kb(pc(oT.ready,oT.tot),"جاهز للاستلام",f(oT.ready),"teal","flex:1")+'</div>'+
+        '<div class="note">تقسيم الجاهز للاستلام (تم التحقيق / مرتجعات / قيد التشغيل) يحتاج عمود «نتيجة التحقيق» التفصيلي من الـ Apps Script؛ غير متاح في اللوحة حاليًا.</div></div>'}));
+    }
+
+    /* ===== الإلغاءات ===== */
+    var cn=vOps(V,ym,"cancel");
+    if(cn.length){
+      add(sl({cls:"dark",nofoot:1,nav:"ثانيًا: الإلغاءات",body:'<div class="divider">ثانيًا : الغاءات</div>'}));
+      var cS=resp(cn),cO=outcomes(cn);
+      add(sl({tag:"الإلغاءات – قسم Validation | "+ymName(ym),title:"الإلغاءات – قسم Validation",nav:"الإلغاءات — حالة الرد",body:
+        '<div class="note" style="font-weight:700;color:var(--ink);margin-bottom:8px">حالة الرد على الإلغاءات</div><div class="row" style="height:120px;margin-bottom:22px">'+kb(f(cS.tot),"إجمالي الإلغاءات (AWB)","100%","navy","flex:1")+kb(f(cS.res),"تم الرد",pc(cS.res,cS.tot),"teal","flex:1")+kb(f(cS.nor),"لم يتم الرد",pc(cS.nor,cS.tot),"red","flex:1")+'</div>'+
+        '<div class="note" style="font-weight:700;color:var(--ink);margin-bottom:8px">نتائج الحالات التي تم الرد عليها ('+f(cO.tot)+')</div><div class="row" style="height:120px">'+kb(f(cO.cancel),"إلغاء الشحنة",pc(cO.cancel,cO.tot),"","flex:1")+kb(f(cO.post),"تأجيل لأبعد من الغد",pc(cO.post,cO.tot),"","flex:1")+kb(f(cO.ready),"جاهز للاستلام اليوم أو غدًا",pc(cO.ready,cO.tot),"","flex:1")+kb(f(cO.fake),"Fake",pc(cO.fake,cO.tot),"red","flex:1")+'</div>'}));
+      var fk=cn.filter(function(r){return r.fake}),fT=vn(fk);
+      if(fT){
+        var fb=Object.keys(groupBy(fk,function(r){return r.br})).map(function(k){return[k,vn(fk.filter(function(r){return r.br===k}))]}).sort(function(a,b){return b[1]-a[1]}).slice(0,6);
+        var fc=Object.keys(groupBy(fk,function(r){return r.cr+"||"+r.br})).map(function(k){return[k,vn(fk.filter(function(r){return r.cr+"||"+r.br===k}))]}).sort(function(a,b){return b[1]-a[1]}).slice(0,5);
+        add(sl({tag:"حالات Fake – قسم Validation | "+ymName(ym),title:"حالات Fake في الإلغاءات",nav:"حالات Fake — الإلغاءات",sub:"إجمالي حالات Fake: "+f(fT)+" AWB",body:
+          '<div class="row" style="height:100%"><div class="fill"><div class="note" style="font-weight:700;color:var(--ink);margin-bottom:8px">أكثر فرع ظهر فيه Fake: '+esc(fb[0][0])+" — "+f(fb[0][1])+" AWB ("+pc(fb[0][1],fT)+')</div>'+hbars(fb.map(function(x){return{l:x[0],v:x[1],t:f(x[1])+" ("+pc(x[1],fT)+")"}}))+'<div class="note">أعلى '+fb.length+' فروع: '+f(sum(fb,function(x){return x[1]}))+" AWB ("+pc(sum(fb,function(x){return x[1]}),fT)+") من الإجمالي</div></div>"+
+          '<div class="fill"><div class="note" style="font-weight:700;color:var(--ink);margin-bottom:8px">أكثر مندوب ظهر عليه Fake: '+esc(fc[0][0].split("||")[0])+" — "+f(fc[0][1])+' AWB</div>'+hbars(fc.map(function(x){return{l:x[0].split("||")[0]+" ("+x[0].split("||")[1]+")",v:x[1],t:f(x[1])+" ("+pc(x[1],fT)+")"}}))+'<div class="note">أعلى '+fc.length+' مناديب: '+f(sum(fc,function(x){return x[1]}))+" AWB ("+pc(sum(fc,function(x){return x[1]}),fT)+') من الإجمالي</div></div></div>'}));
+      }
+    }
+
+    /* ===== التأكيدات ===== */
+    var un=vUnc(V,ym);
+    if(un.length){
+      var uT=vn(un);
+      add(sl({cls:"dark",nofoot:1,nav:"ثالثًا: تأكيدات",body:'<div class="divider">ثالثًا : تأكيدات</div>'}));
+      var stKey=un.some(function(r){return r.sp})?"sp":"st",byS=groupBy(un,function(r){return r[stKey]||"غير محدد بالمصدر"});
+      var sts=Object.keys(byS).map(function(k){return[k,vn(byS[k])]}).sort(function(a,b){return b[1]-a[1]});
+      add(sl({tag:"التأكيدات | "+ymName(ym),title:"التأكيدات",nav:"التأكيدات — توزيع الحالات",sub:stKey==="sp"?"حالة الشحنة: تم سحبها":"حالة الشحنة بالسيستم",body:
+        '<div class="row" style="height:130px;margin-bottom:18px">'+kb(f(uT),"إجمالي الحالات","100%","navy","flex:1")+sts.slice(0,4).map(function(s){return kb(f(s[1]),esc(s[0]),pc1(s[1],uT),"","flex:1")}).join("")+'</div>'+
+        '<div class="note" style="font-weight:700;color:var(--ink);margin-bottom:8px">توزيع الحالات حسب السبب</div>'+hbars(sts.slice(0,6).map(function(s){return{l:s[0],v:s[1],t:f(s[1])}}))}));
+      var fu=un.filter(function(r){return r.rev==="FAKE"}),fuT=vn(fu);
+      if(fuT){
+        var fub=Object.keys(groupBy(fu,function(r){return r.br})).map(function(k){return[k,vn(fu.filter(function(r){return r.br===k}))]}).sort(function(a,b){return b[1]-a[1]}).slice(0,12);
+        add(sl({tag:"حالات Fake | "+ymName(ym),title:"حالات Fake — التأكيدات",nav:"حالات Fake — التأكيدات",sub:"إجمالي حالات Fake: "+f(fuT)+" AWB | الفروع من الأعلى للأقل",body:
+          '<div class="kb navy" style="padding:10px;margin-bottom:12px"><div class="l">أعلى فرع: '+esc(fub[0][0])+" — "+f(fub[0][1])+" AWB ("+pc(fub[0][1],fuT)+")"+(fub[1]?" | يليه "+esc(fub[1][0])+" "+f(fub[1][1])+" AWB ("+pc(fub[1][1],fuT)+")":"")+'</div></div>'+hbars(fub.map(function(x){return{l:x[0],v:x[1],t:f(x[1])+" ("+pc(x[1],fuT)+")"}})).replace(/margin:0 0 9px/g,"margin:0 0 6px")+'<div class="note">أعلى 3 فروع: '+f(sum(fub.slice(0,3),function(x){return x[1]}))+" AWB ("+pc(sum(fub.slice(0,3),function(x){return x[1]}),fuT)+") — أسماء المناديب غير متاحة في بيانات «لم يتم التأكيد» باللوحة.</div>"}));
+        var gy=vn(fu,function(r){return r.grp==="yes"||r.grp===1||r.grp===true}),gn=vn(fu,function(r){return r.grp==="no"||r.grp===0||r.grp===false}),gb=fuT-gy-gn;
+        var gst=groupBy(fu,function(r){return r[stKey]||"غير محدد بالمصدر"});
+        add(sl({tag:"حالات Fake – قسم التأكيدات | "+ymName(ym),title:"الإبلاغ على الجروب — حالات Fake",nav:"حالات Fake — الإبلاغ على الجروب",sub:"إجمالي حالات Fake: "+f(fuT)+(gb>0?" — منها "+f(gb)+" بدون قيمة في عمود الإبلاغ (مستبعدة من النسب)":""),body:
+          '<div class="row" style="height:130px;margin-bottom:18px">'+kb(f(gy+gn),"إجمالي (المحدد حالة الإبلاغ)","100%","navy","flex:1")+kb(f(gy),"تم التبليغ",pc1(gy,gy+gn),"","flex:1")+kb(f(gn),"لم يتم التبليغ",pc1(gn,gy+gn),"red","flex:1")+'</div>'+
+          '<div class="note" style="font-weight:700;color:var(--ink);margin-bottom:8px">الإبلاغ حسب حالة الشحنة</div>'+Object.keys(gst).map(function(k){var rs=gst[k],a=vn(rs,function(r){return r.grp==="yes"||r.grp===1||r.grp===true}),b=vn(rs,function(r){return r.grp==="no"||r.grp===0||r.grp===false});return[k,a,b]}).filter(function(x){return x[1]+x[2]>0}).sort(function(a,b){return b[1]+b[2]-a[1]-a[2]}).slice(0,6).map(function(x){return'<div class="hr"><div class="hl">'+esc(x[0])+" ("+f(x[1]+x[2])+')</div>'+stacked(x[1],x[2],"var(--mid)","#6B7280")+'</div>'}).join("")+'<div class="lg" style="justify-content:flex-start"><span><i style="background:var(--mid)"></i>تم التبليغ</span><span><i style="background:#6B7280"></i>لم يتم التبليغ</span></div>'}));
+      }
+    }
+  }
+
+  /* الختام */
+  add(sl({cls:"dark cover",nofoot:1,nav:"الختام",body:'<div class="cv" style="top:280px;width:520px"><h1 style="font-size:48px">شكرًا لكم</h1><p>فريق Control Tower — Fleet Support | قسم المتابعة</p></div>'}));
+  return L;
+}
+
+/* =====================================================================
+   العرض والتنقل
+   ===================================================================== */
+var deck=[],idx=0,sizing=null;
+function build(){
+  var st=$("stage");
+  deck=slides(X);
+  st.innerHTML=deck.map(function(s){return s.html}).join("");
+  var secs=st.querySelectorAll(".sl");
+  secs.forEach(function(el,i){var p=el.querySelector(".pg");if(p)p.textContent=i+1});
+  $("jump").innerHTML=deck.map(function(s,i){return'<option value="'+i+'">'+(i+1)+". "+esc(s.title.replace(/<[^>]*>/g,"")).slice(0,60)+'</option>'}).join("");
+  $("msg").style.display=deck.length>2?"none":"flex";
+  if(deck.length<=2)$("msg").textContent="لا توجد بيانات كافية لهذا الشهر في اللوحات (تحقق من اتصال اللوحات).";
+  go(Math.min(idx,deck.length-1));
+}
+function go(i){
+  idx=Math.max(0,Math.min(deck.length-1,i));
+  var secs=$("stage").querySelectorAll(".sl");
+  secs.forEach(function(el,k){el.classList.toggle("on",k===idx)});
+  $("cnt").textContent=deck.length?(idx+1)+" / "+deck.length:"—";
+  $("prev").disabled=idx<=0;$("next").disabled=idx>=deck.length-1;$("jump").value=idx;
+}
+function fit(){
+  var vp=$("vp"),w=vp.clientWidth-20,h=vp.clientHeight-20,k=Math.max(.2,Math.min(w/1280,h/720));
+  var sc=$("scaler");sc.style.width=1280*k+"px";sc.style.height=720*k+"px";$("stage").style.transform="scale("+k+")";
+}
+function status(){
+  var ok={S:!!bridge("S"),V:!!bridge("V"),R:!!bridge("R")},nm={S:"Fleet Support",V:"Validation",R:"عدم الإبلاغ"};
+  $("st").innerHTML=Object.keys(ok).map(function(k){return'<span class="chip '+(ok[k]?"ok":"bad")+'">'+nm[k]+(ok[k]?"":" — غير متاح")+'</span>'}).join(" ");
+}
+var busy=0,retries=0,retryT=null;
+function refresh(hard){
+  var my=++busy;clearTimeout(retryT);
+  if(deck.length<=2){$("msg").style.display="flex";$("msg").textContent="جارٍ قراءة بيانات اللوحات…"}
+  if(hard){sCache={};rCache={}}
+  return waitReady(hard?15000:90000).then(function(){
+    if(my!==busy)return;
+    status();
+    months=collectMonths();
+    var m=$("month");
+    if(!sel||months.indexOf(sel)<0)sel=months[months.length-1]||"";
+    m.innerHTML=months.map(function(x){return'<option value="'+x+'"'+(x===sel?" selected":"")+'>'+ymLabel(x)+'</option>'}).join("");
+    if(!sel){$("msg").textContent="لا توجد بيانات متاحة من اللوحات بعد. تأكد من اتصال اللوحات ثم اضغط «تحديث البيانات».";return}
+    return collect(sel).then(function(o){
+      if(my!==busy)return;X=o;build();status();
+      // لو مصدر لم يكن جاهزًا بعد: نعيد المحاولة تلقائيًا (حتى 12 مرة) فتكتمل الشرائح فور وصول بياناته
+      if(!(bridge("S")&&bridge("V")&&bridge("R"))&&retries++<12)retryT=setTimeout(function(){refresh(false)},8000);
+    });
+  });
+}
+$("prev").onclick=function(){go(idx-1)};
+$("next").onclick=function(){go(idx+1)};
+$("jump").onchange=function(){go(+this.value)};
+$("month").onchange=function(){sel=this.value;refresh(false)};
+$("reload").onclick=function(){retries=0;refresh(true)};
+$("full").onclick=function(){var el=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else if(el.requestFullscreen)el.requestFullscreen()};
+$("print").onclick=function(){window.print()};
+document.addEventListener("keydown",function(e){
+  if(/INPUT|SELECT|TEXTAREA/.test((e.target||{}).tagName||""))return;
+  var k=e.key;
+  if(k==="ArrowLeft"||k==="PageDown"||k===" "){go(idx+1);e.preventDefault()}   // اتجاه RTL: اليسار = التالي
+  else if(k==="ArrowRight"||k==="PageUp"){go(idx-1);e.preventDefault()}
+  else if(k==="Home")go(0);else if(k==="End")go(deck.length-1);
+});
+window.addEventListener("resize",fit);
+fit();refresh(false);
+</script>
+</body>
+</html>

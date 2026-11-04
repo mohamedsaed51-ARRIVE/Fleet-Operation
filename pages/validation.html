@@ -672,6 +672,8 @@ $('#rpPrint').onclick = () => window.print();
 $('#btnRefresh').onclick = load;
 $('#btnSettings').onclick = () => { $('#apiUrl').value = apiUrl(); $('#dlg').showModal(); };
 $('#saveUrl').onclick = () => { const v = $('#apiUrl').value.trim(); if(v){ lsSet(LS.url, v); setTimeout(load, 0); } };
+/* جسر قراءة للعرض التقديمي (قراءة فقط) */
+window.__deck = { ready: () => !!D, data: () => D };
 load();
 setInterval(() => { if(apiUrl() && !document.hidden) load(); }, 5 * 60 * 1000);
 </script>
