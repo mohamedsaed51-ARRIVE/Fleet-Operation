@@ -284,10 +284,32 @@ async function load(){
     showState('تعذّر تحميل البيانات: ' + err.message, true);
   }
 }
+/* الشهر أحيانًا يصل من الشيت كتاريخ نصي طويل (مثل "SAT AUG 08 2026 00:00:00 GMT+0300 ...") بدل "2026-08"؛
+   نوحّد كل المفاتيح على صيغة YYYY-MM (من تاريخ بداية الشهر) ونحذف التكرار. */
+function normMonths(d){
+  const ok = m => /^\d{4}-\d{2}$/.test(String(m));
+  const map = {};
+  (d.months || []).forEach(x => { if(!ok(x.m) && x.from) map[x.m] = String(x.from).slice(0, 7); });
+  const canon = m => ok(m) ? m : (map[m] || m);
+  const seen = new Set();
+  d.months = (d.months || []).map(x => ({ ...x, m: canon(x.m) })).filter(x => !seen.has(x.m) && seen.add(x.m)).sort((a, b) => a.m.localeCompare(b.m));
+  d.O.forEach(r => { r.m = canon(r.m); }); d.U.forEach(r => { r.m = canon(r.m); });
+  if(d.rounds && Array.isArray(d.rounds.byMonth)){
+    const by = {};
+    d.rounds.byMonth.forEach(x => { const k = canon(x.m), cur = by[k]; by[k] = cur ? { ...cur, r: cur.r.map((v, i) => v + (x.r[i] || 0)) } : { ...x, m: k }; });
+    d.rounds.byMonth = Object.values(by);
+  }
+  if(d.days) Object.keys(d.days).forEach(g => {
+    const o = {}, src = d.days[g] || {};
+    Object.keys(src).forEach(k => { const i = k.lastIndexOf('|'), nk = (i < 0 ? '' : k.slice(0, i + 1)) + canon(k.slice(i + 1)); o[nk] = Math.max(o[nk] || 0, src[k]); });
+    d.days[g] = o;
+  });
+}
 function normalize(d){
   if(!d || !Array.isArray(d.ops) || !Array.isArray(d.unc)) throw new Error('شكل JSON غير متوقع');
   const toObj = (cols, rows) => rows.map(a => Object.fromEntries(cols.map((k, i) => [k, a[i]])));
   d.O = toObj(d.opsCols, d.ops); d.U = toObj(d.uncCols, d.unc);
+  normMonths(d);
   return d;
 }
 function showState(msg, retry){
