@@ -22,6 +22,13 @@ body{font-family:var(--font);background:#2b2f45;color:var(--ink);display:flex;fl
 .chrome button:disabled{opacity:.4;cursor:default}
 .chrome .sp{flex:1}
 .chrome .cnt{min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
+.ms{position:relative}
+.ms .pn{display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:60;background:#fff;color:#111;min-width:240px;max-height:340px;overflow:auto;padding:6px;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.ms.open .pn{display:block}
+.ms .pn label{display:flex;align-items:center;gap:8px;padding:5px 8px;font-size:13px;cursor:pointer;border-radius:5px}
+.ms .pn label:hover{background:#eef0fa}
+.ms .pn .clr{display:block;width:100%;margin-bottom:4px;color:#111;background:#eef0fa;border:0}
+.ms button.on{background:var(--gold);color:#1b1f3b;border-color:var(--gold)}
 .chip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.12)}
 .chip.ok{background:rgba(42,157,143,.35)} .chip.bad{background:rgba(200,85,61,.45)}
 .viewport{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:10px;position:relative}
@@ -114,6 +121,8 @@ table.tb.sm{font-size:12.5px} table.tb.sm td{padding:3px 6px} table.tb.sm th{pad
   <button id="next" type="button" title="التالي">التالي ›</button>
   <select id="jump" aria-label="انتقال إلى شريحة"></select>
   <select id="month" aria-label="الشهر"></select>
+  <div class="ms" id="fBr"><button type="button">الفرع: الكل ▾</button><div class="pn"></div></div>
+  <div class="ms" id="fEmp"><button type="button">الموظف: الكل ▾</button><div class="pn"></div></div>
   <span class="sp"></span>
   <span id="st" class="hide-s"></span>
   <button id="reload" type="button">تحديث البيانات</button>
@@ -205,9 +214,36 @@ function collect(ym){
   return Promise.all(list.map(function(m){return supportMonth(m).then(function(a){o.S[m]=a})}).concat([loadReporting().then(function(r){o.R=r})])).then(function(){return o});
 }
 
+/* ---------- الفلاتر متعددة الاختيار (الفرع / الموظف) ---------- */
+var FIL={br:{},emp:{}},FOPT={br:{},emp:{}};
+var nk=function(s){return String(s||"").replace(/^\s*فرع\s+/,"").replace(/[\sـ]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي")};
+var anyK=function(o){for(var k in o)return true;return false};
+var passB=function(n){return !anyK(FIL.br)||!!FIL.br[nk(n)]};
+var passE=function(n){return !anyK(FIL.emp)||!!FIL.emp[nk(n)]};
+var filtering=function(){return anyK(FIL.br)||anyK(FIL.emp)};
+function addOpt(kind,name){var n=String(name||"").trim();if(n&&n!=="غير محدد بالمصدر"&&n!=="(فارغ)"&&!FOPT[kind][nk(n)])FOPT[kind][nk(n)]=n}
+function collectOptions(){
+  FOPT={br:{},emp:{}};
+  var v=bridge("V");if(v){try{var D=v.data();D.O.concat(D.U).forEach(function(r){addOpt("br",r.br);addOpt("emp",r.emp)})}catch(e){}}
+  if(sel&&X){Object.keys(X.S).forEach(function(m){var a=X.S[m];if(a){(a.branchOutcome||[]).forEach(function(r){addOpt("br",r.name)});(a.employeeOutcome||[]).forEach(function(r){addOpt("emp",r.name)})}})}
+  if(X&&X.R){["rep","img"].forEach(function(k){var t=X.R[k];if(t)t.ROWS.forEach(function(r){addOpt("br",rv(t,r,"branch"))})})}
+}
+function drawFilter(kind,box,label){
+  var el=$(box),keys=Object.keys(FOPT[kind]).sort(function(a,b){return FOPT[kind][a].localeCompare(FOPT[kind][b],"ar")});
+  var pn=el.querySelector(".pn"),on=Object.keys(FIL[kind]).length;
+  el.querySelector("button").textContent=label+": "+(on?on+" محدد":"الكل")+" ▾";
+  el.querySelector("button").className=on?"on":"";
+  pn.innerHTML='<button type="button" class="clr">مسح التحديد</button>'+keys.map(function(k){return'<label><input type="checkbox" data-k="'+esc(k)+'"'+(FIL[kind][k]?" checked":"")+'>'+esc(FOPT[kind][k])+'</label>'}).join("");
+  pn.querySelector(".clr").onclick=function(){FIL[kind]={};drawFilters();if(X)build()};
+  pn.querySelectorAll("input").forEach(function(i){i.onchange=function(){var k=i.getAttribute("data-k");if(i.checked)FIL[kind][k]=1;else delete FIL[kind][k];el.querySelector("button").textContent=label+": "+(Object.keys(FIL[kind]).length||"الكل")+(Object.keys(FIL[kind]).length?" محدد":"")+" ▾";el.querySelector("button").className=Object.keys(FIL[kind]).length?"on":"";if(X)build()}});
+}
+function drawFilters(){drawFilter("br","fBr","الفرع");drawFilter("emp","fEmp","الموظف")}
+["fBr","fEmp"].forEach(function(id){var el=$(id);el.querySelector("button").onclick=function(e){e.stopPropagation();var o=el.classList.contains("open");document.querySelectorAll(".ms").forEach(function(x){x.classList.remove("open")});if(!o)el.classList.add("open")};el.querySelector(".pn").onclick=function(e){e.stopPropagation()}});
+document.addEventListener("click",function(){document.querySelectorAll(".ms").forEach(function(x){x.classList.remove("open")})});
+
 /* ---------- حسابات Validation ---------- */
-function vOps(D,m,sec){return D.O.filter(function(r){return r.m===m&&(!sec||r.sec===sec)})}
-function vUnc(D,m){return D.U.filter(function(r){return r.m===m})}
+function vOps(D,m,sec){return D.O.filter(function(r){return r.m===m&&(!sec||r.sec===sec)&&passB(r.br)&&passE(r.emp)})}
+function vUnc(D,m){return D.U.filter(function(r){return r.m===m&&passB(r.br)&&passE(r.emp)})}
 var vn=function(rows,fn){return rows.reduce(function(s,r){return s+((!fn||fn(r))?r.n:0)},0)};
 function vDays(D,key,m){return (D.days&&D.days[key==="unc"?"unc":"ops"]||{})[key==="unc"?m:key+"|"+m]||0}
 function vMonth(D,m){
@@ -239,7 +275,7 @@ var okRate=function(r){return rate((r.resolved||0)+(r.confirmed||0),r.total)};  
 /* ---------- حسابات عدم الإبلاغ ---------- */
 function rptRows(t,ym){
   if(!t)return null;
-  return t.ROWS.filter(function(r){var k=r.date?normYM(r.date):normYM(r.month);return k===ym});
+  return t.ROWS.filter(function(r){var k=r.date?normYM(r.date):normYM(r.month);return k===ym&&passB(rv(t,r,"branch"))});
 }
 function rv(t,r,k){return t.C[k]>-1?String(r.v[t.C[k]]==null?"":r.v[t.C[k]]).trim():""}
 function topCount(rows,fn,n){
@@ -288,7 +324,7 @@ function slides(X){
   add(sl({cls:"dark cover",nofoot:1,nav:"الغلاف",body:'<div class="cv"><h1>تقرير أداء فريق Fleet Support</h1><p>Validation — Control Tower</p><p class="by">مقدَّم إلى: الإدارة التنفيذية &nbsp;|&nbsp; مقدَّم من: إدارة قسم المتابعة</p><div class="mo">'+lab+'</div></div>'}));
 
   /* 2) قسم Fleet Support يتكوّن من فريقين */
-  if(vm||ct!=null){
+  if((vm||ct!=null)&&!filtering()){
     var all=(vm?vm.tot:0)+(ct||0);
     add(sl({tag:tagS,title:"قسم Fleet Support يتكوّن من فريقين",nav:"نظرة عامة على القسم",body:
       '<div class="col" style="height:100%"><div class="kb navy" style="padding:18px"><div class="n" style="font-size:54px">'+f(all)+'</div><div class="l">إجمالي حالات قسم Fleet Support خلال '+lab+'</div></div>'+
@@ -329,7 +365,7 @@ function slides(X){
     }
 
     /* 7) نسبة الحل لكل موظفة: شهر سابق مقابل الحالي */
-    var eo=(cur.employeeOutcome||[]).filter(function(r){return r.total>0});
+    var eo=(cur.employeeOutcome||[]).filter(function(r){return r.total>0&&passE(r.name)});
     if(eo.length){
       if(prevS&&prevS.employeeOutcome){
         var pm={};prevS.employeeOutcome.forEach(function(r){pm[r.name]=r});
@@ -379,7 +415,7 @@ function slides(X){
     /* 12) حجم الحالات بالفرع */
     if(prevS&&prevS.branchOutcome&&cur.branchOutcome){
       var pb={};prevS.branchOutcome.forEach(function(r){pb[r.name]=r.total});
-      var tb=cur.branchOutcome.slice().sort(function(a,b){return b.total-a.total}).slice(0,6);
+      var tb=cur.branchOutcome.filter(function(r){return passB(r.name)}).sort(function(a,b){return b.total-a.total}).slice(0,6);
       if(tb.length){
         var inc=tb.map(function(r){return{n:r.name,a:pb[r.name]||0,b:r.total,d:r.total-(pb[r.name]||0)}}).sort(function(a,b){return b.d-a.d});
         add(sl({tag:"مقارنة شهرية — الفروع",title:"حجم الحالات بالفرع: "+ymName(prevYM)+" مقابل "+ymName(ym),nav:"حجم الحالات بالفرع — مقارنة",body:
@@ -392,7 +428,7 @@ function slides(X){
   /* ===== عدم الإبلاغ ===== */
   if(X.R&&(X.R.rep||X.R.img)){
     var rr=rptRows(X.R.rep,ym);
-    if(rr&&ct!=null){
+    if(rr&&ct!=null&&!filtering()){
       var nr=rr.length,ta=ct+nr;
       add(sl({tag:"أولًا: تقرير عدم الإبلاغ — "+ymName(ym),title:"رصد الحالات التي لم يتم الإبلاغ بها من خلال المناديب على جروبات المتابعة واتساب",nav:"تقرير عدم الإبلاغ",body:
         '<div class="row" style="height:100%"><div class="fill"><div class="vb" style="padding:0 60px"><div class="vg"><div class="vcols"><div class="vc" style="max-width:120px;height:'+ct/ta*100+'%;background:var(--navy)"><b>'+f(ct)+'</b></div></div><div class="vl">الحجم الفعلي</div></div><div class="vg"><div class="vcols" style="flex-direction:column-reverse;align-items:center;gap:0"><div class="vc" style="max-width:120px;width:100%;flex:none;height:'+ct/ta*100+'%;background:var(--navy);border-radius:0"><b style="top:50%;color:#fff;transform:translate(-50%,-50%)">'+f(ct)+'</b></div><div class="vc" style="max-width:120px;width:100%;flex:none;height:'+nr/ta*100+'%;background:var(--gold)"><b style="top:50%;transform:translate(-50%,-50%)">'+f(nr)+'</b></div></div><div class="vl">لو تم الإبلاغ عن كل الحالات</div></div></div></div>'+
@@ -473,6 +509,17 @@ function slides(X){
             ["الإجمالي",f(oT.tot),c3(oT.ready,oT.tot),c3(oT.post,oT.tot),c3(oT.cancel,oT.tot)].concat(oT.other>0?[c3(oT.other,oT.tot)]:[]))+
           (br.length>15?'<div class="note">المعروض أعلى 15 فرعًا — الإجمالي يشمل كل الفروع.</div>':"")}));
       }
+      /* 23) نتائج التحقيق حسب الفرع (تتطلب عمود inv من الـ Apps Script) */
+      var invAgg=function(rows){var r=rows.filter(function(x){return x.fin==="responded"&&isReady(x.sol)}),t=vn(r),d=vn(r,function(x){return x.inv==="done"}),rt=vn(r,function(x){return x.inv==="return"}),w=vn(r,function(x){return x.inv==="wip"});return{tot:t,done:d,ret:rt,wip:w,other:t-d-rt-w}};
+      var hasInv=V.opsCols&&V.opsCols.indexOf("inv")>-1,iT=invAgg(dl);
+      if(hasInv&&iT.tot){
+        var ib=Object.keys(byB).map(function(k){var o=invAgg(byB[k]);o.n=k;return o}).filter(function(o){return o.tot}).sort(function(a,b){return b.tot-a.tot}).slice(0,15);
+        var c4=function(n,t){return f(n)+" ("+pc(n,t)+")"},oth=iT.other>0;
+        add(sl({tag:"نتائج التحقيق",title:"نتائج التحقيق حسب الفرع — "+lab,nav:"نتائج التحقيق حسب الفرع",sub:"الأوردرات الجاهزة للاستلام: "+f(iT.tot)+" أوردر",body:
+          table([{h:"الفرع"},{h:"الإجمالي"},{h:"تم التحقيق",c:"g1"},{h:"حالات مرتجعات",c:"g3"},{h:"قيد التشغيل",c:"g2"}].concat(oth?[{h:"غير مصنف"}]:[]),
+            ib.map(function(o){return[esc(o.n),f(o.tot),c4(o.done,o.tot),c4(o.ret,o.tot),c4(o.wip,o.tot)].concat(oth?[c4(o.other,o.tot)]:[])}),
+            ["الإجمالي",f(iT.tot),c4(iT.done,iT.tot),c4(iT.ret,iT.tot),c4(iT.wip,iT.tot)].concat(oth?[c4(iT.other,iT.tot)]:[]))}));
+      }
       /* 24) مشاكل التسليم شهر مقابل شهر */
       if(vp){
         var df=vm.del-vp.del;
@@ -484,7 +531,7 @@ function slides(X){
         '<div class="col" style="gap:12px"><div class="kb navy" style="width:340px;align-self:center;padding:10px"><div class="n" style="font-size:34px">100%</div><div class="l">إجمالي الأوردرات مشاكل التسليم: '+f(dS.tot)+'</div></div>'+
         '<div class="note">من إجمالي الأوردرات ('+f(dS.tot)+')</div><div class="row" style="height:110px">'+kb(pc(dS.nor,dS.tot),"لم يتم الرد",f(dS.nor),"red","flex:1")+kb(pc(dS.res,dS.tot),"تم الرد",f(dS.res),"teal","flex:1")+'</div>'+
         '<div class="note">من تم الرد ('+f(oT.tot)+')</div><div class="row" style="height:110px">'+kb(pc(oT.cancel,oT.tot),"إلغاء",f(oT.cancel),"red","flex:1")+kb(pc(oT.post,oT.tot),"تأجيل لأبعد من الغد",f(oT.post),"gold","flex:1")+kb(pc(oT.ready,oT.tot),"جاهز للاستلام",f(oT.ready),"teal","flex:1")+'</div>'+
-        '<div class="note">تقسيم الجاهز للاستلام (تم التحقيق / مرتجعات / قيد التشغيل) يحتاج عمود «نتيجة التحقيق» التفصيلي من الـ Apps Script؛ غير متاح في اللوحة حاليًا.</div></div>'}));
+        (hasInv&&iT.tot?'<div class="note">من جاهز للاستلام ('+f(iT.tot)+')</div><div class="row" style="height:110px">'+kb(pc(iT.wip,iT.tot),"قيد التشغيل",f(iT.wip),"gold","flex:1")+kb(pc(iT.ret,iT.tot),"حالات مرتجعات",f(iT.ret),"red","flex:1")+kb(pc(iT.done,iT.tot),"تم التحقيق",f(iT.done),"navy","flex:1")+'</div>':'<div class="note">تقسيم الجاهز للاستلام (تم التحقيق / مرتجعات / قيد التشغيل) يحتاج عمود «نتيجة التحقيق» التفصيلي من الـ Apps Script (انظر apps-script/validation-Code-gs-inv-patch.md).</div>')+'</div>'}));
     }
 
     /* ===== الإلغاءات ===== */
@@ -539,7 +586,7 @@ function slides(X){
    ===================================================================== */
 var deck=[],idx=0,sizing=null;
 function build(){
-  var st=$("stage");
+  var st=$("stage");status();
   deck=slides(X);
   st.innerHTML=deck.map(function(s){return s.html}).join("");
   var secs=st.querySelectorAll(".sl");
@@ -561,8 +608,9 @@ function fit(){
   var sc=$("scaler");sc.style.width=1280*k+"px";sc.style.height=720*k+"px";$("stage").style.transform="scale("+k+")";
 }
 function status(){
+  if(!document.querySelector('.ms.open')){collectOptions();drawFilters()}
   var ok={S:!!bridge("S"),V:!!bridge("V"),R:!!bridge("R")},nm={S:"Fleet Support",V:"Validation",R:"عدم الإبلاغ"};
-  $("st").innerHTML=Object.keys(ok).map(function(k){return'<span class="chip '+(ok[k]?"ok":"bad")+'">'+nm[k]+(ok[k]?"":" — غير متاح")+'</span>'}).join(" ");
+  $("st").innerHTML=(filtering()?'<span class="chip" style="background:var(--gold);color:#1b1f3b" title="الفلاتر تنطبق على Validation وعدم الإبلاغ وجداول/رسوم الفروع والموظفين؛ إجماليات Control Tower وأنواع المشاكل والفترات لا تتأثر">فلاتر نشطة</span> ':"")+Object.keys(ok).map(function(k){return'<span class="chip '+(ok[k]?"ok":"bad")+'">'+nm[k]+(ok[k]?"":" — غير متاح")+'</span>'}).join(" ");
 }
 var busy=0,retries=0,retryT=null;
 function refresh(hard){
