@@ -75,6 +75,15 @@ td.num{font-variant-numeric:tabular-nums}
 .tools input{max-width:320px}
 .foot{color:var(--muted);font-size:12px}
 .empty{color:var(--muted);padding:10px 0}
+input[type=date]{font-family:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
+.res{display:flex;flex-direction:column}
+.res .tablewrap{max-height:360px}
+.res th{background:var(--accent-soft);color:var(--accent)}
+.res tr.tot td{font-weight:700;background:var(--accent-soft);position:sticky;bottom:0}
+.res tr.clickable{cursor:pointer}.res tr.clickable:hover td{background:var(--accent-soft)}
+.res td.pc{direction:ltr;text-align:right;color:var(--muted)}
+.res .bar{display:block;height:6px;border-radius:3px;background:var(--bar);margin-top:3px;min-width:2px}
+details.card summary{cursor:pointer}
 </style>
 </head>
 <body>
@@ -95,40 +104,24 @@ td.num{font-variant-numeric:tabular-nums}
   <div class="banner" id="banner">جاري تحميل التابات من الشيت...</div>
 
   <section class="filters" aria-label="الفلاتر">
+    <label>الشهر<select id="fMonth"></select></label>
+    <label>من تاريخ الإضافة<input type="date" id="fFrom"></label>
+    <label>إلى تاريخ الإضافة<input type="date" id="fTo"></label>
     <label>فرع المنطقة<select id="fBranch"></select></label>
-    <label>المحافظة<select id="fGov"></select></label>
-    <label>الراسل<select id="fSender"></select></label>
-    <label>حالة الشحنة<select id="fStatus"></select></label>
     <button class="btn ghost" id="reset">إعادة ضبط</button>
   </section>
 
   <section class="kpis" id="kpis"></section>
 
-  <section class="grid">
-    <div class="card"><h2>حسب فرع المنطقة</h2><div class="h">اضغط على فرع لتصفية الداش بورد</div><div id="cBranch"></div></div>
-    <div class="card"><h2>حسب المحافظة</h2><div class="h">أعلى 15</div><div id="cGov"></div></div>
-    <div class="card"><h2>حسب الراسل</h2><div class="h">أعلى 15</div><div id="cSender"></div></div>
-    <div class="card"><h2>حسب حالة الشحنة</h2><div class="h">&nbsp;</div><div id="cStatus"></div></div>
-    <div class="card"><h2>حسب الشهر</h2><div class="h">من عمود «الشهر»</div><div id="cMonth"></div></div>
-    <div class="card"><h2>تحليل حسب أي عمود</h2>
-      <div class="h">اختار أي عمود في التاب (مثل أعمدة التبليغ أو الصور) لعرض توزيعه</div>
-      <select id="fCol" aria-label="العمود"></select><div id="cCol" style="margin-top:8px"></div></div>
-  </section>
+  <section class="grid" id="results"></section>
 
-  <section class="card">
-    <h2>مراجعة جودة البيانات</h2>
-    <div class="h">فحوصات على السجلات المعروضة بعد الفلاتر</div>
-    <div class="dq" id="dq"></div>
-  </section>
-
-  <section class="card">
-    <h2>تفاصيل الشحنات</h2>
-    <div class="tools">
+  <details class="card">
+    <summary><b>تفاصيل الشحنات</b> <span class="foot" id="cnt"></span></summary>
+    <div class="tools" style="margin-top:10px">
       <input type="search" id="q" placeholder="بحث في كل الأعمدة">
-      <span class="foot" id="cnt"></span>
     </div>
     <div class="tablewrap"><table id="detail"></table></div>
-  </section>
+  </details>
 
   <div class="foot" id="note"></div>
 </div>
@@ -137,7 +130,7 @@ td.num{font-variant-numeric:tabular-nums}
 var API_URL="https://script.google.com/macros/s/AKfycbwflm-rieaN39ypzBm9zL5BN0AsNQB09AM15OOOcb3yl5UkdvleIcMnECye3_MFbsbL/exec";
 var WANT=["عدمالابلاغ","عدمارسالصور"]; // التابان المطلوبان (بعد توحيد الهمزات والتاء المربوطة)
 var $=function(id){return document.getElementById(id)};
-var TABS=[],CUR=null,CACHE={},H=[],ROWS=[],C={},F={branch:"",gov:"",sender:"",status:""},Q="",COL="",SRC="";
+var TABS=[],CUR=null,CACHE={},H=[],ROWS=[],C={},F={branch:"",month:"",from:"",to:""},Q="",SRC="";
 var TODAY=new Date();TODAY=new Date(TODAY.getFullYear(),TODAY.getMonth(),TODAY.getDate());
 
 function norm(s){return String(s==null?"":s).replace(/[\s_\-]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").toLowerCase()}
@@ -183,11 +176,15 @@ function prepare(grid){
   H=grid[hi].map(function(x,i){return String(x==null?"":x).trim()||("عمود "+(i+1))});
   C={date:findCol(H,["تاريخالاضافه","تاريخالاضافة"],["تاريخ"]),month:findCol(H,["الشهر"]),code:findCol(H,["رقمالبوليصه"],["بوليص","awb"]),
      sender:findCol(H,["الراسل"]),gov:findCol(H,["المحافظه"]),area:findCol(H,["المنطقه"]),cost:findCol(H,["تكلفهالشحن"],["تكلفه"]),
-     branch:findCol(H,["فرعالمنطقه"],["فرع"]),cod:findCol(H,["مبلغالتحصيل"],["تحصيل"]),status:findCol(H,["حالهالشحنه"],["حالهالشحن"])};
+     branch:findCol(H,["فرعالمنطقه"],["فرع"]),cod:findCol(H,["مبلغالتحصيل"],["تحصيل"]),status:findCol(H,["حالهالشحنه"],["حالهالشحن"]),
+     rep:findCol(H,["المندوب","اسمالمندوب"],["مندوب"]),final:findCol(H,["الحالهالنهائيه"],["نهائي"]),ptype:findCol(H,["نوعالمشكله"],["نوعالمشكل","المشكل"])};
   ROWS=[];
   for(var j=hi+1;j<grid.length;j++){var r=grid[j];if(!r||!r.some(function(c){return String(c==null?"":c).trim()!==""}))continue;
     var v=H.map(function(_,k){return r[k]==null?"":r[k]});
-    ROWS.push({v:v,date:C.date>-1?toDate(v[C.date]):null});
+    var dt=C.date>-1?toDate(v[C.date]):null,mv=C.month>-1?String(v[C.month]==null?"":v[C.month]).trim():"";
+    if(v[C.month] instanceof Date){mv=v[C.month].getFullYear()+"-"+("0"+(v[C.month].getMonth()+1)).slice(-2)}
+    if(!mv&&dt)mv=dt.getFullYear()+"-"+("0"+(dt.getMonth()+1)).slice(-2);
+    ROWS.push({v:v,date:dt,month:mv});
   }
 }
 function toGrid(t){
@@ -212,7 +209,7 @@ function loadTabs(){
   return fetchText(API_URL+"?list=1&_="+Date.now()).then(function(t){
     var o=JSON.parse(t);
     if(!o.ok||!o.sheets)throw new Error("السكريبت لا يدعم عرض التابات. حدّث كود Apps Script وانشر نسخة جديدة. الرد: "+t.slice(0,150));
-    var m=o.sheets.filter(function(s){var n=norm(s.name);return WANT.some(function(w){return n.indexOf(w)>-1})});
+    var m=o.sheets.filter(function(s){var n=norm(s.name);return WANT.some(function(w){return n.indexOf(w)>-1})&&n.indexOf("بالحالات")<0&&n.indexOf("مرتجع")<0});
     if(!m.length)throw new Error("لم أجد تاب «عدم الابلاغ» أو «عدم ارسال صورة». التابات الموجودة: "+o.sheets.map(function(s){return s.name}).join("، "));
     TABS=m;
     renderTabs();
@@ -227,7 +224,7 @@ function renderTabs(){
 }
 function openTab(s,force){
   if(!s)return Promise.resolve();
-  CUR=s;renderTabs();F={branch:"",gov:"",sender:"",status:""};Q="";$("q").value="";COL="";
+  CUR=s;renderTabs();F={branch:"",month:"",from:"",to:""};Q="";$("q").value="";
   if(CACHE[s.gid]&&!force){setData(s,CACHE[s.gid]);return Promise.resolve()}
   banner("جاري تحميل تاب «"+s.name+"» ("+fmt(s.rows)+" صف)...");
   return fetchText(API_URL+"?gid="+s.gid+"&_="+Date.now()).then(function(t){
@@ -253,12 +250,16 @@ function loadFile(file){
 
 // ---------- Rendering ----------
 function val(r,k){return C[k]>-1?r.v[C[k]]:""}
+function iso(d){return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2)}
 function filtered(){
   var q=Q.trim().toLowerCase();
   return ROWS.filter(function(r){
-    return(!F.branch||String(val(r,"branch")).trim()===F.branch)&&(!F.gov||String(val(r,"gov")).trim()===F.gov)&&
-      (!F.sender||String(val(r,"sender")).trim()===F.sender)&&(!F.status||String(val(r,"status")).trim()===F.status)&&
-      (!q||r.v.join(" ").toLowerCase().indexOf(q)>-1)});
+    if(F.branch&&String(val(r,"branch")).trim()!==F.branch)return false;
+    if(F.month&&r.month!==F.month)return false;
+    if((F.from||F.to)&&!r.date)return false;
+    if(F.from&&iso(r.date)<F.from)return false;
+    if(F.to&&iso(r.date)>F.to)return false;
+    return !q||r.v.join(" ").toLowerCase().indexOf(q)>-1});
 }
 function opts(sel,idx,cur,all){
   if(idx<0){sel.innerHTML='<option value="">'+all+' (العمود غير موجود)</option>';sel.disabled=true;return}
@@ -267,11 +268,10 @@ function opts(sel,idx,cur,all){
   sel.innerHTML='<option value="">'+all+'</option>'+vs.map(function(v){return'<option'+(v===cur?' selected':'')+'>'+esc(v)+'</option>'}).join("");
 }
 function fillFilters(){
-  opts($("fBranch"),C.branch,F.branch,"كل الفروع");opts($("fGov"),C.gov,F.gov,"كل المحافظات");
-  opts($("fSender"),C.sender,F.sender,"كل الراسلين");opts($("fStatus"),C.status,F.status,"كل الحالات");
-  $("fCol").innerHTML=H.map(function(h,i){return'<option value="'+i+'"'+(String(i)===COL?' selected':'')+'>'+esc(h)+'</option>'}).join("");
-  if(COL==="")COL=String(Math.max(C.status,0));
-  $("fCol").value=COL;
+  opts($("fBranch"),C.branch,F.branch,"كل الفروع");
+  var ms=[];ROWS.forEach(function(r){if(r.month&&ms.indexOf(r.month)<0)ms.push(r.month)});ms.sort();
+  $("fMonth").innerHTML='<option value="">كل الشهور</option>'+ms.map(function(m){return'<option'+(m===F.month?' selected':'')+'>'+esc(m)+'</option>'}).join("");
+  $("fFrom").value=F.from;$("fTo").value=F.to;
 }
 function bars(el,entries,total,key,limit){
   entries=limit?entries.slice(0,limit):entries;
@@ -283,50 +283,70 @@ function bars(el,entries,total,key,limit){
   if(key)el.querySelectorAll(".row").forEach(function(n){n.onclick=function(){var k=n.getAttribute("data-k");F[key]=F[key]===k?"":k;fillFilters();render()}});
 }
 function sum(rows,k){var s=0,c=0;rows.forEach(function(r){var x=num(val(r,k));if(x!=null){s+=x;c++}});return{s:s,c:c}}
+function isProblemTab(){return CUR&&norm(CUR.name).indexOf("تمتبليغ")>-1}
+// جدول نتيجة: [اسم, عدد, %] + إجمالي + هيدر ثابت. entries=[[label,count,extra?]]
+function resTable(title,sub,head,entries,total,key){
+  var h='<div class="card res"><h2>'+title+'</h2><div class="h">'+sub+'</div>';
+  if(!entries.length){return h+'<div class="empty">لا توجد بيانات</div></div>'}
+  var max=Math.max.apply(null,entries.map(function(e){return e[1]}));
+  h+='<div class="tablewrap"><table><thead><tr>'+head.map(function(x,i){return'<th'+(i>=head.length-2?' class="num"':'')+'>'+x+'</th>'}).join("")+'</tr></thead><tbody>'+
+    entries.map(function(e){return'<tr'+(key?' class="clickable" data-k="'+esc(e[0])+'"':'')+'>'+
+      e[2].map(function(c){return'<td>'+esc(c)+'</td>'}).join("")+'<td class="num"><b>'+fmt(e[1])+'</b><span class="bar" style="width:'+(max?e[1]/max*100:0)+'%"></span></td><td class="pc">'+pct(e[1],total)+'</td></tr>'}).join("")+
+    '<tr class="tot"><td colspan="'+(head.length-2)+'">الإجمالي</td><td class="num">'+fmt(total)+'</td><td class="pc">100.0%</td></tr></tbody></table></div></div>';
+  return h;
+}
 function render(){
   if(!H.length)return;
-  var rows=filtered(),n=rows.length;
+  var rows=filtered(),n=rows.length,prob=isProblemTab();
   $("sub").textContent="المصدر: "+(CUR?CUR.name:"")+" · "+SRC.split(" · ").slice(1).join(" · ")+" · تاريخ الحساب: "+dstr(TODAY);
-  var codes={},dup=0;
-  if(C.code>-1){rows.forEach(function(r){var c=String(val(r,"code")).trim();if(c)codes[c]=(codes[c]||0)+1});Object.keys(codes).forEach(function(c){if(codes[c]>1)dup++})}
-  var uniq=C.code>-1?Object.keys(codes).length:null;
-  var cod=sum(rows,"cod"),cost=sum(rows,"cost");
   var ages=rows.map(function(r){return ageDays(r.date)}).filter(function(x){return x!=null});
   var oldest=ages.length?Math.max.apply(null,ages):null;
-  var k=[["إجمالي السجلات",fmt(n),uniq==null?"":"بوليصات فريدة: "+fmt(uniq),""],
-    ["الفروع / المحافظات",(C.branch>-1?new Set(rows.map(function(r){return val(r,"branch")})).size:"—")+" / "+(C.gov>-1?new Set(rows.map(function(r){return val(r,"gov")})).size:"—"),"عدد القيم المختلفة",""],
-    ["الراسلون",C.sender>-1?fmt(new Set(rows.map(function(r){return val(r,"sender")})).size):"—","عدد الراسلين المختلفين",""],
-    ["مبلغ التحصيل",C.cod>-1?fmt(cod.s):"—",C.cod>-1?"من "+fmt(cod.c)+" سجل رقمي":"العمود غير موجود",""],
-    ["تكلفة الشحن",C.cost>-1?fmt(cost.s):"—",C.cost>-1?"من "+fmt(cost.c)+" سجل رقمي":"العمود غير موجود",""],
+  var nb=C.branch>-1?new Set(rows.map(function(r){return String(val(r,"branch")).trim()})).size:"—";
+  var nr=C.rep>-1?new Set(rows.map(function(r){return String(val(r,"rep")).trim()})).size:"—";
+  var k=[["إجمالي الأوردرات",fmt(n),"بعد الفلاتر",""],["عدد الفروع",nb,"عدد الفروع المختلفة",""],["عدد المناديب",nr==="—"?"—":fmt(nr),C.rep>-1?"عدد المناديب المختلفين":"عمود المندوب غير موجود",""],
     ["أقدم سجل (يوم)",oldest==null?"—":fmt(oldest),"من تاريخ الإضافة حتى اليوم",oldest>30?"bad":""]];
   $("kpis").innerHTML=k.map(function(x){return'<div class="kpi '+x[3]+'"><div class="l">'+x[0]+'</div><div class="v">'+x[1]+'</div><div class="n">'+x[2]+'</div></div>'}).join("");
 
-  function chart(id,idx,key,lim){if(idx<0){$(id).innerHTML='<div class="empty">العمود غير موجود في هذا التاب</div>';return}bars($(id),countBy(rows,function(r){return r.v[idx]}),n,key,lim)}
-  chart("cBranch",C.branch,"branch");chart("cGov",C.gov,"gov",15);chart("cSender",C.sender,"sender",15);chart("cStatus",C.status,"status");chart("cMonth",C.month,null);
-  bars($("cCol"),countBy(rows,function(r){return r.v[+COL]}),n,null,15);
-
-  var noDate=rows.filter(function(r){return!r.date}).length,blankStatus=C.status>-1?rows.filter(function(r){return String(val(r,"status")).trim()===""}).length:null;
-  var noPhone=0;
-  var dq=[["بوليصات مكررة",C.code>-1?dup:"—",dup?"bad":"ok"],["تاريخ إضافة غير صالح أو فارغ",C.date>-1?noDate:"—",noDate?"warn":"ok"],
-    ["حالة الشحنة فارغة",blankStatus==null?"—":blankStatus,blankStatus?"warn":"ok"],["عدد الأعمدة في التاب",H.length,""]];
-  $("dq").innerHTML=dq.map(function(x){return'<div><span>'+x[0]+'</span><span class="pill '+x[2]+'">'+x[1]+'</span></div>'}).join("");
+  function cnt(fn){var m={};rows.forEach(function(r){var k=fn(r);k=(k==null||String(k).trim()==="")?"(فارغ)":String(k).trim();m[k]=(m[k]||0)+1});return m}
+  function sorted(m,byKey){return Object.keys(m).map(function(k){return[k,m[k],[k]]}).sort(byKey?function(a,b){return a[0]<b[0]?-1:a[0]>b[0]?1:0}:function(a,b){return b[1]-a[1]})}
+  var out="";
+  // 1) بتاريخ الإضافة (من الأقدم)
+  if(C.date>-1){var dm={},dl={};rows.forEach(function(r){var k=r.date?iso(r.date):"(بدون تاريخ)";dm[k]=(dm[k]||0)+1;dl[k]=r.date?dstr(r.date):k});
+    var de=Object.keys(dm).sort().map(function(k){return[k,dm[k],[dl[k]]]});
+    out+=resTable("عدد الأوردرات بتاريخ الإضافة","كل يوم على حدة",["تاريخ الإضافة","عدد الأوردرات","%"],de,n)}
+  else out+='<div class="card"><h2>عدد الأوردرات بتاريخ الإضافة</h2><div class="empty">عمود تاريخ الإضافة غير موجود في هذا التاب</div></div>';
+  // 2) بالشهر
+  out+=resTable("عدد الأوردرات بالشهر","من عمود «الشهر» أو من تاريخ الإضافة",["الشهر","عدد الأوردرات","%"],sorted(cnt(function(r){return r.month}),true),n);
+  // 3) الحالة النهائية / نوع المشكلة
+  var xi=prob?C.ptype:C.final,xt=prob?"نوع المشكلة":"الحالة النهائية";
+  if(xi>-1)out+=resTable("عدد الأوردرات حسب "+xt,"من عمود «"+H[xi]+"»",[xt,"عدد الأوردرات","%"],sorted(cnt(function(r){return r.v[xi]})),n);
+  else out+='<div class="card"><h2>عدد الأوردرات حسب '+xt+'</h2><div class="empty">عمود «'+xt+'» غير موجود في هذا التاب (الأعمدة: '+esc(H.join("، "))+')</div></div>';
+  // 4) الفرع
+  if(C.branch>-1)out+=resTable("عدد أوردرات الفرع","اضغط على فرع لتصفية النتائج",["الفرع","عدد الأوردرات","%"],sorted(cnt(function(r){return val(r,"branch")})),n,"branch");
+  else out+='<div class="card"><h2>عدد أوردرات الفرع</h2><div class="empty">عمود فرع المنطقة غير موجود</div></div>';
+  // 5) المندوب والفرع
+  if(C.rep>-1){var bm={};rows.forEach(function(r){var b=String(val(r,"branch")).trim()||"(فارغ)",c=String(val(r,"rep")).trim()||"(فارغ)",k=b+"||"+c;bm[k]=(bm[k]||0)+1});
+    var be=Object.keys(bm).map(function(k){var p=k.split("||");return[k,bm[k],[p[0],p[1]]]}).sort(function(a,b){return b[1]-a[1]});
+    out+=resTable("عدد أوردرات المندوب والفرع","كل مندوب داخل فرعه",["الفرع","المندوب","عدد الأوردرات","%"],be,n)}
+  else out+='<div class="card"><h2>عدد أوردرات المندوب والفرع</h2><div class="empty">عمود المندوب غير موجود في هذا التاب</div></div>';
+  $("results").innerHTML=out;
+  $("results").querySelectorAll("tr.clickable").forEach(function(tr){tr.onclick=function(){var k=tr.getAttribute("data-k");F.branch=F.branch===k?"":k;fillFilters();render()}});
 
   var list=rows.slice().sort(function(a,b){return(ageDays(b.date)||-1)-(ageDays(a.date)||-1)}),LIM=300;
-  $("cnt").textContent="يعرض "+fmt(Math.min(LIM,list.length))+" من "+fmt(list.length)+" سجل (الأقدم أولًا)";
+  $("cnt").textContent="— "+fmt(Math.min(LIM,list.length))+" من "+fmt(list.length)+" سجل (الأقدم أولًا)";
   $("detail").innerHTML='<thead><tr><th>العمر (يوم)</th>'+H.map(function(h){return'<th>'+esc(h)+'</th>'}).join("")+'</tr></thead><tbody>'+
     list.slice(0,LIM).map(function(r){var a=ageDays(r.date);return'<tr><td class="num">'+(a==null?"":a)+'</td>'+r.v.map(function(c){return'<td>'+esc(c instanceof Date?dstr(c):c)+'</td>'}).join("")+'</tr>'}).join("")+'</tbody>';
-  $("note").textContent="طريقة الحساب: العمر = تاريخ اليوم − تاريخ الإضافة بالأيام، والتاريخ بصيغة يوم-شهر-سنة لو مفصول بشرطة وشهر/يوم/سنة لو مفصول بشرطة مائلة، ومن غير حد SOP مطبّق. المبالغ مجموع القيم الرقمية فقط. النسب من السجلات بعد الفلاتر.";
+  $("note").textContent="النسب من إجمالي الأوردرات بعد الفلاتر. العمر = تاريخ اليوم − تاريخ الإضافة بالأيام (بدون حد SOP). التاريخ بصيغة يوم-شهر-سنة لو مفصول بشرطة وشهر/يوم/سنة لو مفصول بشرطة مائلة."
 }
 
 $("sync").onclick=function(){CACHE={};loadTabs()};
 $("up").onclick=function(){$("file").click()};
 $("file").onchange=function(e){if(e.target.files[0])loadFile(e.target.files[0])};
 $("fBranch").onchange=function(e){F.branch=e.target.value;render()};
-$("fGov").onchange=function(e){F.gov=e.target.value;render()};
-$("fSender").onchange=function(e){F.sender=e.target.value;render()};
-$("fStatus").onchange=function(e){F.status=e.target.value;render()};
-$("fCol").onchange=function(e){COL=e.target.value;render()};
-$("reset").onclick=function(){F={branch:"",gov:"",sender:"",status:""};Q="";$("q").value="";fillFilters();render()};
+$("fMonth").onchange=function(e){F.month=e.target.value;render()};
+$("fFrom").onchange=function(e){F.from=e.target.value;render()};
+$("fTo").onchange=function(e){F.to=e.target.value;render()};
+$("reset").onclick=function(){F={branch:"",month:"",from:"",to:""};Q="";$("q").value="";fillFilters();render()};
 $("q").oninput=function(e){Q=e.target.value;render()};
 loadTabs();
 </script>
