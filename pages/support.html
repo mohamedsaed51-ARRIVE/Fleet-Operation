@@ -2383,6 +2383,8 @@ function boot() {
     if (chartsSkipped && state.data) { chartsSkipped = false; onFullAppData(state.data); }
   });
 }
+/* جسر قراءة للعرض التقديمي (قراءة فقط) */
+window.__deck = { ready: () => !!(state.data && state.data.analytics), state: () => state, call: (a, p) => apiCall(a, p) };
 boot();
 
 </script>

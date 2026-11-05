@@ -348,6 +348,19 @@ $("fFrom").onchange=function(e){F.from=e.target.value;render()};
 $("fTo").onchange=function(e){F.to=e.target.value;render()};
 $("reset").onclick=function(){F={branch:"",month:"",from:"",to:""};Q="";$("q").value="";fillFilters();render()};
 $("q").oninput=function(e){Q=e.target.value;render()};
+/* جسر قراءة للعرض التقديمي: يحمّل تابًا بدون المساس بحالة الصفحة (الفلاتر/الجدول المعروض) */
+window.__deck={
+  ready:function(){return TABS.length>0},
+  tabs:function(){return TABS},
+  load:function(s){
+    var g=CACHE[s.gid]?Promise.resolve(CACHE[s.gid]):fetchText(API_URL+"?gid="+s.gid+"&_="+Date.now()).then(function(t){var x=toGrid(t);CACHE[s.gid]=x;return x});
+    return g.then(function(grid){
+      var o={H:H,C:C,ROWS:ROWS},res;
+      try{prepare(grid);res={H:H,C:C,ROWS:ROWS}}finally{H=o.H;C=o.C;ROWS=o.ROWS}
+      return res;
+    });
+  }
+};
 loadTabs();
 </script>
 </body>
