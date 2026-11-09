@@ -439,8 +439,14 @@ const sumN = (rows, f) => rows.reduce((a, r) => a + (f ? (f(r) ? r.n : 0) : r.n)
 const gs = v => (v === 1 || v === true || v === 'yes') ? 'yes' : (v === '' || v == null) ? 'blank' : 'no';
 // جاهز للاستلام اليوم/غدا (من «نتيجة التحقيق» — يتطلب عمود rdy من الـ Apps Script الجديد)
 function readyTables(rows){
-  if(!D.opsCols.includes('rdy')) return '<div class="notice warn">جدولا «جاهز للاستلام اليوم أو غدا» يحتاجان تحديث الـ Apps Script (عمود rdy من «نتيجة التحقيق») ثم نشر نسخة جديدة.</div>';
+  const hasRdy = D.opsCols.includes('rdy'), hasSoon = D.opsCols.includes('soon');
+  if(!hasRdy && !hasSoon) return '<div class="notice warn">جدولا «جاهز للاستلام اليوم أو غدا» يحتاجان عمود «نتيجة التحقيق» في الـ Apps Script (عمود soon أو rdy) ثم نشر نسخة جديدة.</div>';
   const mk = (key, head) => {
+    if(!hasRdy){   // عمود soon: 1 = «جاهز للاستلام اليوم أو غدا» في نتيجة التحقيق (بدون فصل اليوم عن غدا)
+      const list = [...group(rows, r => r[key])].map(([k, rs]) => { const t = sumN(rs), ab = sumN(rs, r => r.soon === 1); return { name:k, ab, t, p:pct(ab, t) }; }).filter(x => x.ab > 0).sort((x, y) => y.ab - x.ab);
+      const AB = list.reduce((x, y) => x + y.ab, 0), T = list.reduce((x, y) => x + y.t, 0);
+      return table([{h:head,k:'name'},{h:'جاهز للاستلام اليوم أو غدا',k:'ab',n:1},{h:'إجمالي سجلاته',k:'t',n:1},{h:'% من سجلاته',k:'p',n:1}], list, { name:'الإجمالي', ab:N(AB), t:N(T), p:pct(AB, T) });
+    }
     const list = [...group(rows, r => r[key])].map(([k, rs]) => { const t = sumN(rs), a = sumN(rs, r => r.rdy === 'today'), b = sumN(rs, r => r.rdy === 'tomorrow'); return { name:k, a, b, ab:a + b, t, p:pct(a + b, t) }; }).filter(x => x.ab > 0).sort((x, y) => y.ab - x.ab);
     const A = list.reduce((x, y) => x + y.a, 0), B = list.reduce((x, y) => x + y.b, 0), T = list.reduce((x, y) => x + y.t, 0);
     return table([{h:head,k:'name'},{h:'جاهز اليوم',k:'a',n:1},{h:'جاهز غدا',k:'b',n:1},{h:'الإجمالي (اليوم + غدا)',k:'ab',n:1},{h:'إجمالي سجلاته',k:'t',n:1},{h:'% من سجلاته',k:'p',n:1}], list, { name:'الإجمالي', a:N(A), b:N(B), ab:N(A + B), t:N(T), p:pct(A + B, T) });
@@ -474,10 +480,10 @@ function outcomesBlock(rows, key = 'emp', head = 'الموظف'){
   const cell = (e, t) => sumN(resp.filter(r => r[key] === e && bucket(r.sol) === t));
   const cols = [...top, ...(types.length > top.length ? ['أخرى'] : [])];
   // ثلاث فئات للإدارة كنسبة من إجمالي «تم الرد»: جاهز للاستلام اليوم/غدا (من نتيجة التحقيق)، إلغاء الشحنة، تأجيل لأبعد من الغد (من نوع الحل)
-  const hasRdy = D.opsCols.includes('rdy');
+  const hasRdy = D.opsCols.includes('rdy'), hasSoon = D.opsCols.includes('soon');
   const CATS = [
-    // من «نتيجة التحقيق» (عمود rdy)؛ وإن لم يصل بعد من السيرفر نستخدم «نوع الحل» الذي يحتوي جاهز للاستلام/الاستلام + اليوم أو غدا
-    { h:'جاهز للاستلام اليوم أو غدا', f:hasRdy ? (r => r.rdy === 'today' || r.rdy === 'tomorrow') : (r => /جاهز.*(اليوم|غد|بكر)/.test(String(r.sol || '')) || /(اليوم|غد|بكر).*جاهز/.test(String(r.sol || ''))) },
+    // «جاهز للاستلام اليوم أو غدا» من «نتيجة التحقيق» (عمود soon أو rdy)؛ وإن لم يصل بعد من السيرفر نستخدم «نوع الحل»
+    { h:'جاهز للاستلام اليوم أو غدا', f:hasRdy ? (r => r.rdy === 'today' || r.rdy === 'tomorrow') : hasSoon ? (r => r.soon === 1) : (r => /جاهز.*(اليوم|غد|بكر)/.test(String(r.sol || ''))) },
     { h:'إلغاء الشحنة', f:r => /[إأا]لغاء/.test(String(r.sol || '')) },
     { h:'تأجيل لأبعد من الغد', f:r => /ت[أا]جيل/.test(String(r.sol || '')) }
   ];
