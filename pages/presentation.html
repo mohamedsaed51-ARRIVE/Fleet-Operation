@@ -316,7 +316,7 @@ function sl(o){return{cls:o.cls||"",html:'<section class="sl '+(o.cls||"")+'">'+
 function slides(X){
   var L=[],ym=X.ym,lab=ymLabel(ym),V=X.V,cur=X.S[ym],prevYM=X.prev,prevS=prevYM?X.S[prevYM]:null;
   var add=function(s){if(s)L.push(s)};
-  var tagS="Fleet Support — "+lab,tagV="Fleet Support — Validation | "+lab;
+  var tagS="Control Tower — "+lab,tagV="Fleet Support — Validation | "+lab;
   var vm=V?vMonth(V,ym):null,vp=V&&prevYM?vMonth(V,prevYM):null;
   var ct=cur?(cur.team&&cur.team.total!=null?cur.team.total:(sMonthRow(cur,ym)||{}).total):null;
 
@@ -349,7 +349,7 @@ function slides(X){
       add(sl({tag:"الفروقات الشهرية",title:"حجم الحالات: "+mrows.map(function(r){return ymName(r.m)}).join(" و"),nav:"حجم الحالات شهريًا",body:
         '<div class="row" style="height:100%"><div class="fill">'+vbars(mrows.map(function(r){return ymName(r.m)}),[{vals:mrows.map(function(r){return r.t}),color:"var(--navy)"}])+'</div>'+
         '<div class="col" style="width:340px">'+(chg!=null?kb((chg>0?"+":"−")+f1(Math.abs(chg))+"%","التغيّر من "+ymName(first.m)+" ("+f(first.t)+") إلى "+ymName(last.m)+" ("+f(last.t)+")","","navy"):kb("—","لا يوجد شهر سابق للمقارنة","","navy"))+
-        '<div class="box fill"><h4>ملاحظة</h4><div class="note">الأرقام محسوبة من لوحة Fleet Support لكل شهر على حدة. أسباب التغيّر (إيقاف أو إعادة العمل على أنواع حالات) تُضاف يدويًا حسب قرارات التشغيل.</div></div></div></div>'}));
+        '<div class="box fill"><h4>ملاحظة</h4><div class="note">الأرقام محسوبة من لوحة Control Tower لكل شهر على حدة. أسباب التغيّر (إيقاف أو إعادة العمل على أنواع حالات) تُضاف يدويًا حسب قرارات التشغيل.</div></div></div></div>'}));
     }
 
     /* 6) الفروع المرسِلة في كل فترة */
@@ -361,7 +361,7 @@ function slides(X){
           return'<div class="col fill" style="gap:8px"><div class="kb navy sm" style="padding:8px"><div class="n" style="font-size:20px">'+esc(String(r.label).replace(/\s*\(.*\)$/,""))+'</div></div><div class="kb" style="padding:8px"><div class="n" style="font-size:30px">'+f(r.total)+'</div><div class="s">شحنة ('+pc(r.total,T)+')</div></div>'+
           '<div class="box fill" style="background:#FAF3E0;border-color:#EBD9A6;padding:8px 10px;font-size:12.5px;line-height:1.7">'+(r.topBranches||[]).slice(0,3).map(function(b,i){return(i+1)+". "+esc(b.name)+" <b>"+f(b.total)+"</b> ("+pc(b.total,r.total)+")"}).join("<br>")+'</div></div>'}).join("")+'</div>'+
         (pk.length?'<div class="kb navy" style="margin-top:14px;padding:12px;flex-direction:row;gap:14px;justify-content:center"><span class="l">فترة الضغط: '+pk.map(function(r){return esc(String(r.label).replace(/\s*\(.*\)$/,""))+" — "+f(r.total)+" حالة ("+pc(r.total,T)+")"}).join(" و ")+'</span></div>':"")+
-        '<div class="note" style="margin-top:8px">الفترات محسوبة من وقت تسجيل الحالة (Record ID) في لوحة Fleet Support.</div>'}));
+        '<div class="note" style="margin-top:8px">الفترات محسوبة من وقت تسجيل الحالة (Record ID) في لوحة Control Tower.</div>'}));
     }
 
     /* 7) نسبة الحل لكل موظفة: شهر سابق مقابل الحالي */
@@ -391,10 +391,10 @@ function slides(X){
     var mt=X.list.map(function(m){var r=sMonthRow(X.S[m],m);return r?{m:m,r:r}:null}).filter(Boolean);
     if(mt.length){
       var c2=function(n,t){return f(n)+"<br><small>("+pc(n,t)+")</small>"};
-      add(sl({tag:"Fleet Support — "+ymName(mt[0].m)+" إلى "+lab,title:"مقارنة نسب تم الحل ونسب تم التأكيد لكل شهر",nav:"مقارنة الحل والتأكيد شهريًا",body:
+      add(sl({tag:"Control Tower — "+ymName(mt[0].m)+" إلى "+lab,title:"مقارنة نسب تم الحل ونسب تم التأكيد لكل شهر",nav:"مقارنة الحل والتأكيد شهريًا",body:
         table([{h:"الشهر"},{h:"إجمالي المشاكل"},{h:"إجمالي الحل",c:"g3"},{h:"تم الحل",c:"g3"},{h:"لم يتم الحل",c:"g3"},{h:"إجمالي التأكيد",c:"g1"},{h:"تم التأكيد",c:"g1"},{h:"لم يتم التأكيد",c:"g1"}],
           mt.map(function(x){var r=x.r,t=r.total;return[ymName(x.m),f(t),c2((r.resolved||0)+(r.unresolved||0),t),c2(r.resolved||0,t),c2(r.unresolved||0,t),c2((r.confirmed||0)+(r.notConfirmed||0),t),c2(r.confirmed||0,t),c2(r.notConfirmed||0,t)]}))+
-        '<div class="note" style="margin-top:14px">«الحل» و«التأكيد» تصنيفان لنوع المشكلة كما في لوحة Fleet Support (حل: تجزئة، استبدال، تحويل تكلفة…؛ تأكيد: رفض ورفض، رفض ودفع، تهرب…). النسب من إجمالي حالات الشهر.</div>'}));
+        '<div class="note" style="margin-top:14px">«الحل» و«التأكيد» تصنيفان لنوع المشكلة كما في لوحة Control Tower (حل: تجزئة، استبدال، تحويل تكلفة…؛ تأكيد: رفض ورفض، رفض ودفع، تهرب…). النسب من إجمالي حالات الشهر.</div>'}));
     }
 
     /* 10) أكبر 6 أنواع مشاكل + 11) نسب الحل لكل نوع */
@@ -559,7 +559,7 @@ function slides(X){
       add(sl({cls:"dark",nofoot:1,nav:"ثالثًا: تأكيدات",body:'<div class="divider">ثالثًا : تأكيدات</div>'}));
       var stKey=un.some(function(r){return r.sp})?"sp":"st",byS=groupBy(un,function(r){return r[stKey]||"غير محدد بالمصدر"});
       var sts=Object.keys(byS).map(function(k){return[k,vn(byS[k])]}).sort(function(a,b){return b[1]-a[1]});
-      add(sl({tag:"التأكيدات | "+ymName(ym),title:"التأكيدات",nav:"التأكيدات — توزيع الحالات",sub:stKey==="sp"?"حالة الشحنة: تم سحبها":"حالة الشحنة بالسيستم",body:
+      add(sl({tag:"التأكيدات | "+ymName(ym),title:"التأكيدات",nav:"التأكيدات — توزيع الحالات",sub:stKey==="sp"?"حالة الشحنة: تم سحبها":"حالة الشحنة تم سحبها",body:
         '<div class="row" style="height:130px;margin-bottom:18px">'+kb(f(uT),"إجمالي الحالات","100%","navy","flex:1")+sts.slice(0,4).map(function(s){return kb(f(s[1]),esc(s[0]),pc1(s[1],uT),"","flex:1")}).join("")+'</div>'+
         '<div class="note" style="font-weight:700;color:var(--ink);margin-bottom:8px">توزيع الحالات حسب السبب</div>'+hbars(sts.slice(0,6).map(function(s){return{l:s[0],v:s[1],t:f(s[1])}}))}));
       var fu=un.filter(function(r){return r.rev==="FAKE"}),fuT=vn(fu);
@@ -609,7 +609,7 @@ function fit(){
 }
 function status(){
   if(!document.querySelector('.ms.open')){collectOptions();drawFilters()}
-  var ok={S:!!bridge("S"),V:!!bridge("V"),R:!!bridge("R")},nm={S:"Fleet Support",V:"Validation",R:"عدم الإبلاغ"};
+  var ok={S:!!bridge("S"),V:!!bridge("V"),R:!!bridge("R")},nm={S:"Control Tower",V:"Validation",R:"عدم الإبلاغ"};
   $("st").innerHTML=(filtering()?'<span class="chip" style="background:var(--gold);color:#1b1f3b" title="الفلاتر تنطبق على Validation وعدم الإبلاغ وجداول/رسوم الفروع والموظفين؛ إجماليات Control Tower وأنواع المشاكل والفترات لا تتأثر">فلاتر نشطة</span> ':"")+Object.keys(ok).map(function(k){return'<span class="chip '+(ok[k]?"ok":"bad")+'">'+nm[k]+(ok[k]?"":" — غير متاح")+'</span>'}).join(" ");
 }
 var busy=0,retries=0,retryT=null;
