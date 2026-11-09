@@ -166,8 +166,77 @@ function harvest(d) {
   return out;
 }
 
+/* ---------- الملخص المجمّع: Control Tower + Validation مع فلتر الشهر ---------- */
+var MN = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+function normYM(x) {
+  var t = String(x == null ? "" : x).trim(), m = t.match(/^(\d{4})[-\/](\d{1,2})/);
+  if (m) return m[1] + "-" + ("0" + m[2]).slice(-2);
+  if (t && /[A-Za-z]{3}/.test(t)) { var d = new Date(t); if (!isNaN(d)) return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2); }
+  return "";
+}
+function ymLabel(ym) { return ym ? MN[+ym.slice(5) - 1] + " " + ym.slice(0, 4) : "كل الشهور"; }
+function fnum(n) { return n == null || isNaN(n) ? "—" : Math.round(n).toLocaleString("en-US"); }
+function fpct(a, b) { return b ? (Math.round(a / b * 1000) / 10).toFixed(1) + "%" : "—"; }
+function bridgeOf(id) { try { var d = DASHBOARDS.filter(function (x) { return x.id === id; })[0]; var w = d && d.frame && d.frame.contentWindow; return w && w.__deck && w.__deck.ready() ? w.__deck : null; } catch (e) { return null; } }
+var ovMonth = "", ovCache = {};
+function ovMonths() {
+  var set = {}, v = bridgeOf("validation"), s = bridgeOf("support");
+  try { (v.data().months || []).forEach(function (m) { var k = normYM(m.m); if (k) set[k] = 1; }); } catch (e) {}
+  try { (s.state().data.filterOptions.availableMonths || []).forEach(function (m) { var k = normYM(m); if (k) set[k] = 1; }); } catch (e) {}
+  return Object.keys(set).sort();
+}
+function ctMonthData(ym) {
+  var s = bridgeOf("support"); if (!s) return Promise.resolve(null);
+  var key = "ct" + ym; if (ovCache[key]) return ovCache[key];
+  var par = ym ? { dateFrom: ym + "-01", dateTo: ym + "-" + new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate() } : {};
+  return ovCache[key] = s.call("analytics", par).then(function (a) {
+    var m = ym && (a.monthly || []).filter(function (x) { return normYM(x.month) === ym; })[0];
+    if (m) return m;
+    var rows = a.employeeOutcome || [], g = function (k) { return rows.reduce(function (t, r) { return t + (r[k] || 0); }, 0); };
+    return { total: (a.team && a.team.total) || g("total"), resolved: g("resolved"), unresolved: g("unresolved"), confirmed: g("confirmed"), notConfirmed: g("notConfirmed") };
+  }).catch(function () { delete ovCache[key]; return null; });
+}
+function valMonthData(ym) {
+  var v = bridgeOf("validation"); if (!v) return null;
+  var D = v.data(), n = function (rows, f) { return rows.reduce(function (t, r) { return t + ((!f || f(r)) ? r.n : 0); }, 0); };
+  var inM = function (r) { return !ym || r.m === ym; }, O = D.O.filter(inM), U = D.U.filter(inM);
+  var del = O.filter(function (r) { return r.sec === "delivery"; }), can = O.filter(function (r) { return r.sec === "cancel"; });
+  var res = n(O, function (r) { return r.fin === "responded"; }), nor = n(O, function (r) { return r.fin === "noresp"; });
+  return { del: n(del), can: n(can), unc: n(U), res: res, nor: nor, ready: n(O, function (r) { return r.fin === "responded" && r.ready; }) };
+}
+function kcard(l, v, s, tone) { return '<div class="kc" style="--tone:' + tone + '"><div class="l">' + esc(l) + '</div><div class="v">' + esc(v) + '</div>' + (s ? '<div class="s">' + esc(s) + '</div>' : "") + '</div>'; }
+var comboEl = null, comboTok = 0;
+function renderCombo() {
+  if (!comboEl) return;
+  var months = ovMonths(), tok = ++comboTok;
+  if (!bridgeOf("support") && !bridgeOf("validation")) { comboEl.innerHTML = '<div class="ov-empty">جارٍ تحميل بيانات Control Tower و Validation…</div>'; return; }
+  if (ovMonth && months.indexOf(ovMonth) < 0) ovMonth = "";
+  if (ovMonth === "" && !comboEl.getAttribute("data-init") && months.length) { ovMonth = months[months.length - 1]; comboEl.setAttribute("data-init", "1"); }
+  var opts = '<option value="">كل الشهور</option>' + months.map(function (m) { return '<option value="' + m + '"' + (m === ovMonth ? " selected" : "") + '>' + ymLabel(m) + '</option>'; }).join("");
+  ctMonthData(ovMonth).then(function (c) {
+    if (tok !== comboTok) return;
+    var v = valMonthData(ovMonth), ct = c ? c.total : null, vt = v ? v.del + v.can + v.unc : null;
+    var tot = (ct == null && vt == null) ? null : (ct || 0) + (vt || 0), body = "";
+    body += '<div class="kgrid">' +
+      kcard("إجمالي حالات القسم (Control Tower + Validation)", fnum(tot), ct == null || vt == null ? "أحد المصدرين غير متاح حاليًا — الإجمالي جزئي" : "مجموع الفريقين", "#1e2761") +
+      kcard("Control Tower", fnum(ct), (tot && ct != null) ? fpct(ct, tot) + " من إجمالي القسم" : "", "#334155") +
+      kcard("Validation", fnum(vt), (tot && vt != null) ? fpct(vt, tot) + " من إجمالي القسم" : "", "#00a9c4") + '</div>';
+    body += '<div class="ov-head" style="margin-top:18px"><h2 style="--tone:#334155">Control Tower</h2></div><div class="kgrid">' + (c ?
+      kcard("إجمالي الحالات", fnum(c.total), "", "#334155") + kcard("تم الحل", fnum(c.resolved), fpct(c.resolved, c.total) + " من الإجمالي", "#16a34a") +
+      kcard("تم التأكيد", fnum(c.confirmed), fpct(c.confirmed, c.total) + " من الإجمالي", "#16a34a") +
+      kcard("الحل والتأكيد", fpct((c.resolved || 0) + (c.confirmed || 0), c.total), "(تم الحل + تم التأكيد) ÷ الإجمالي", "#0837c9") : '<div class="ov-empty">بيانات Control Tower غير متاحة حاليًا.</div>') + '</div>';
+    body += '<div class="ov-head" style="margin-top:18px"><h2 style="--tone:#00a9c4">Validation</h2></div><div class="kgrid">' + (v ?
+      kcard("إجمالي Validation", fnum(vt), "", "#00a9c4") + kcard("مشاكل التسليم", fnum(v.del), fpct(v.del, vt) + " من Validation", "#00a9c4") +
+      kcard("الإلغاءات", fnum(v.can), fpct(v.can, vt) + " من Validation", "#00a9c4") + kcard("لم يتم التأكيد", fnum(v.unc), fpct(v.unc, vt) + " من Validation", "#00a9c4") +
+      kcard("نسبة الرد (تسليم + إلغاء)", fpct(v.res, v.res + v.nor), "تم الرد " + fnum(v.res) + " من " + fnum(v.res + v.nor), "#0837c9") : '<div class="ov-empty">بيانات Validation غير متاحة حاليًا.</div>') + '</div>';
+    comboEl.innerHTML = '<section class="ov-sec"><div class="ov-head"><h2 style="--tone:#1e2761">الملخص المجمّع للقسم — ' + ymLabel(ovMonth) + '</h2>' +
+      '<label style="margin-inline-start:auto;font-size:12px;color:var(--muted)">الشهر: <select id="ovMonthSel" style="font-family:inherit;font-size:13px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)">' + opts + '</select></label></div>' + body + '</section>';
+    document.getElementById("ovMonthSel").onchange = function () { ovMonth = this.value; comboEl.setAttribute("data-init", "1"); renderCombo(); };
+  });
+}
 function renderOverview() {
-  var h = '<p class="ov-intro">أهم المؤشرات من كل لوحة كما تظهر فيها حاليًا. للتفاصيل والفلاتر افتح اللوحة المعنية.</p>';
+  if (!comboEl || !ovEl.contains(comboEl)) { ovEl.innerHTML = '<div id="ovCombo"></div><div id="ovCards"></div>'; comboEl = document.getElementById("ovCombo"); renderCombo(); }
+  var h = '<p class="ov-intro">تفاصيل المؤشرات من كل لوحة كما تظهر فيها حاليًا. للتفاصيل والفلاتر افتح اللوحة المعنية.</p>';
   DASHBOARDS.forEach(function (d) {
     if (d.overview || d.deck) return;
     var k = d.kpis, body;
@@ -180,7 +249,7 @@ function renderOverview() {
     h += '<section class="ov-sec" style="--tone:' + d.tone + '"><div class="ov-head"><h2>' + esc(d.title) + '</h2>' +
       '<a href="#' + d.id + '">فتح اللوحة ‹</a></div>' + body + '</section>';
   });
-  ovEl.innerHTML = h;
+  document.getElementById("ovCards").innerHTML = h;
 }
 function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
@@ -188,7 +257,10 @@ var rt = null;
 function refreshOverview() { clearTimeout(rt); rt = setTimeout(function () {
   DASHBOARDS.forEach(function (d) { if (d.frame && d.sel) { d.kpis = harvest(d); d.ready = d.panel.classList.contains("ready"); } });
   renderOverview();
+  var sig = (bridgeOf("support") ? 1 : 0) + "" + (bridgeOf("validation") ? 1 : 0);
+  if (sig !== comboSig) { comboSig = sig; ovCache = {}; renderCombo(); }
 }, 250); }
+var comboSig = "";
 
 function watch(d) {
   refreshOverview();

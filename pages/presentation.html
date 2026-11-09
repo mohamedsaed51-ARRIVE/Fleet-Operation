@@ -127,6 +127,7 @@ table.tb.sm{font-size:12.5px} table.tb.sm td{padding:3px 6px} table.tb.sm th{pad
   <span id="st" class="hide-s"></span>
   <button id="reload" type="button">تحديث البيانات</button>
   <button id="full" type="button">ملء الشاشة</button>
+  <button id="pptx" type="button" title="تنزيل العرض كملف PowerPoint (.pptx)">تنزيل PowerPoint</button>
   <button id="print" type="button">طباعة / PDF</button>
 </div>
 <div class="viewport" id="vp">
@@ -639,6 +640,35 @@ $("month").onchange=function(){sel=this.value;refresh(false)};
 $("reload").onclick=function(){retries=0;refresh(true)};
 $("full").onclick=function(){var el=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else if(el.requestFullscreen)el.requestFullscreen()};
 $("print").onclick=function(){window.print()};
+/* ---------- تنزيل PowerPoint (.pptx): كل شريحة تُرسم كصورة عالية الدقة بنفس تصميم العرض ---------- */
+function loadScript(src){return new Promise(function(res,rej){var s=document.createElement("script");s.src=src;s.onload=res;s.onerror=function(){rej(new Error("تعذّر تحميل "+src))};document.head.appendChild(s)})}
+var pptxBusy=false;
+function exportPptx(){
+  if(pptxBusy||deck.length<3)return;
+  pptxBusy=true;var btn=$("pptx"),old=btn.textContent;btn.disabled=true;btn.textContent="جارٍ التجهيز…";
+  var host=document.createElement("div");host.style.cssText="position:fixed;left:-20000px;top:0;width:1280px;height:720px;direction:ltr";document.body.appendChild(host);
+  var stage=document.createElement("div");stage.className="stage";stage.style.cssText="position:absolute;top:0;left:0;width:1280px;height:720px;transform:none";host.appendChild(stage);
+  Promise.all([window.PptxGenJS?0:loadScript("https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"),window.html2canvas?0:loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js")])
+  .then(function(){return document.fonts&&document.fonts.ready})
+  .then(function(){
+    var pp=new PptxGenJS();pp.layout="LAYOUT_16x9";pp.rtlMode=true;pp.title="تقرير أداء فريق Fleet Support — "+ymLabel(sel);pp.author="قسم المتابعة — ARRIVE";
+    var secs=$("stage").querySelectorAll(".sl"),chain=Promise.resolve();
+    secs.forEach(function(el,i){
+      chain=chain.then(function(){
+        btn.textContent="شريحة "+(i+1)+" / "+secs.length;
+        var c=el.cloneNode(true);c.classList.add("on");stage.innerHTML="";stage.appendChild(c);
+        return html2canvas(c,{scale:2,backgroundColor:null,width:1280,height:720,windowWidth:1280,windowHeight:720,useCORS:true,logging:false}).then(function(cv){
+          var sl=pp.addSlide();sl.addImage({data:cv.toDataURL("image/jpeg",.92),x:0,y:0,w:"100%",h:"100%"});
+          sl.addNotes(String(deck[i].title||"").replace(/<[^>]*>/g,""));
+        });
+      });
+    });
+    return chain.then(function(){return pp.writeFile({fileName:"Fleet_Support_Report_"+sel+".pptx"})});
+  })
+  .catch(function(e){alert("تعذّر إنشاء ملف PowerPoint: "+(e&&e.message||e)+"\nتأكد من اتصال الإنترنت (تُحمَّل مكتبتا التصدير من CDN) ثم أعد المحاولة.")})
+  .then(function(){host.remove();btn.disabled=false;btn.textContent=old;pptxBusy=false});
+}
+$("pptx").onclick=exportPptx;
 document.addEventListener("keydown",function(e){
   if(/INPUT|SELECT|TEXTAREA/.test((e.target||{}).tagName||""))return;
   var k=e.key;
