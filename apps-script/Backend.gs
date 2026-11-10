@@ -51,6 +51,12 @@ function readMasterValues_() {
   if (lastRow < 2) return [];
 
   const values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  // عمود shift (الفترة داخل الشيفت): نبحث عنه باسم الرأس "shift" ونضيف قيمته كعمود 15 لكل صف (فارغ لو غير موجود)
+  const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  let shiftCol = -1;
+  header.forEach((h, i) => { if (shiftCol < 0 && String(h).trim().toLowerCase() === 'shift') shiftCol = i + 1; });
+  const shiftVals = shiftCol > 0 ? sheet.getRange(2, shiftCol, lastRow - 1, 1).getValues() : null;
+  for (let i = 0; i < values.length; i++) values[i].push(shiftVals ? shiftVals[i][0] : '');
   cachePutValues_(cache, values);
   return values;
 }
@@ -97,6 +103,7 @@ function buildNormalizedRecords_(values) {
       statusBucket: getStatusBucket_(status),
       statusKind: getStatusKind_(status),
       entryHour: entryDate ? entryDate.getHours() : null,
+      shiftHour: shiftHour_(row[14]),                          // فترة الشيفت (13,14,16,18,20,22) من عمود shift
       weekday: parsedDate ? parsedDate.getDay() : null,       // 0=الأحد … 6=السبت
       notes: cleanString_(row[C.NOTES - 1]),
       whatsappSent: row[C.WHATSAPP_SENT - 1] === true,
@@ -106,6 +113,24 @@ function buildNormalizedRecords_(values) {
   });
 
   return { records: records, invalidDateCount: invalidDateCount };
+}
+
+/**
+ * عمود shift = الفترة التي وصلت فيها الحالة داخل الشيفت، وقيمه في الشيت أوقات مثل 12:00 / 13:00 / 14:00 / 16:00 / 17:00 / 18:00 / 20:00 / 22:00 / 23:00.
+ * يقبل "13:00" أو 13 أو خلية وقت، وأيضًا مدى مثل "11-1" (يُسمّى بنهايته: 11–1 → 13، 1–2 → 14، 2–4 → 16، 4–6 → 18، 6–8 → 20، 8–10 → 22).
+ * ساعة < 11 تُعتبر مساءً (+12). قيمة غير مفهومة => null (تُستبعد من تقسيم الشيفت وتُعدّ في missing).
+ */
+function shiftHour_(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  if (Object.prototype.toString.call(v) === '[object Date]') {   // خلية وقت: نقرّب لأقرب ساعة (تجنّبًا لفروق دقائق التوقيت في تواريخ 1899)
+    if (isNaN(v.getTime())) return null;
+    return (v.getHours() + (v.getMinutes() >= 30 ? 1 : 0)) % 24;
+  }
+  const hrs = []; String(v).replace(/(\d{1,2})(?::\d{2})?/g, (m, h) => { hrs.push(Number(h)); return m; });   // الساعات فقط (بدون الدقائق)
+  if (!hrs.length) return null;
+  const h = hrs[hrs.length - 1];               // نهاية الفترة
+  if (h > 24) return null;
+  return h < 11 ? h + 12 : h;
 }
 
 function formatTimestamp_(recordId) {
@@ -120,8 +145,8 @@ function formatTimestamp_(recordId) {
  * (يشير لـ generation واحد) فلا يرى القارئ مجموعة ناقصة أو مخلوطة بين تنفيذين متزامنين.
  * أي قطعة ناقصة/تالفة => نتجاهل الكاش ونقرأ من الشيت. تجاوز السقف => لا كاش (والطلب يعمل عادي).
  */
-const CACHE_META_KEY_ = 'fs_master_values_v2_meta';
-const CACHE_CHUNK_PREFIX_ = 'fs_master_values_v2:';
+const CACHE_META_KEY_ = 'fs_master_values_v3_meta';
+const CACHE_CHUNK_PREFIX_ = 'fs_master_values_v3:';
 const CACHE_CHUNK_CHARS_ = 30000;
 const CACHE_MAX_CHUNKS_ = 60;
 
@@ -747,6 +772,13 @@ function getPeriodAnalysis_(records) {
     const h = r.entryHour;
     return hourlyDefs[h] || (hourlyDefs[h] = { key: 'x' + h, label: (h < 10 ? '0' : '') + h + ':00', order: h });
   });
+  // الأوردرات حسب فترة الشيفت (13:00 / 14:00 / 16:00 / 18:00 / 20:00 / 22:00) من عمود shift
+  const shiftDefs = {};
+  const shift = buildPeriodRows_(records, r => {
+    const h = r.shiftHour;
+    if (h === null || h === undefined) return null;
+    return shiftDefs[h] || (shiftDefs[h] = { key: 's' + h, label: (h < 10 ? '0' : '') + h + ':00', order: h });
+  });
   const weekday = buildPeriodRows_(dated, r => {
     return WEEKDAY_DEFS_[r.weekday] || null;
   }, WEEKDAY_ORDER_.map((d, i) => ({ key: 'd' + d, label: WEEKDAY_LABELS_[d], order: i })));
@@ -755,7 +787,7 @@ function getPeriodAnalysis_(records) {
     const i = r.day <= 7 ? 0 : r.day <= 14 ? 1 : r.day <= 21 ? 2 : 3;   // نفس حدود MONTH_PARTS_
     return MONTH_PART_DEFS_[i];
   }, MONTH_PARTS_.map((p, i) => ({ key: p.key, label: p.label, order: i })));
-  return { hour: hour, hourly: hourly, weekday: weekday, monthPart: monthPart, hourBlock: block };
+  return { hour: hour, hourly: hourly, shift: shift, weekday: weekday, monthPart: monthPart, hourBlock: block };
 }
 
 /* ---------------- الحزمة الكاملة ---------------- */
