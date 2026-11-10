@@ -154,6 +154,16 @@ nav.tabs{display:flex;gap:4px;padding:0 var(--page-pad);background:var(--surface
 .tab.on{color:var(--arrive-blue);border-bottom-color:var(--arrive-blue)}
 .filters{display:flex;gap:12px;flex-wrap:wrap;align-items:end;padding:14px var(--page-pad);max-width:var(--page-max);margin:0 auto}
 .filters label{display:flex;flex-direction:column;font-size:var(--fs-caption);color:var(--text-secondary);gap:4px}
+.msel{display:flex;flex-direction:column;font-size:var(--fs-caption);color:var(--text-secondary);gap:4px;position:relative}
+.msel details{position:relative}
+.msel summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:170px;max-width:260px;height:var(--control-h-md);border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface-card);color:var(--text-primary);padding:0 10px;font-size:var(--fs-body,14px);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.msel summary::-webkit-details-marker{display:none}
+.msel summary::after{content:"▾";color:var(--text-secondary);flex:none}
+.msel .mpop{position:absolute;z-index:50;top:calc(100% + 4px);inset-inline-start:0;min-width:100%;width:max-content;max-width:340px;max-height:320px;overflow:auto;background:var(--surface-card);border:1px solid var(--border-strong);border-radius:var(--radius-sm);box-shadow:0 8px 24px rgba(15,23,42,.18);padding:6px}
+.msel .mclr{width:100%;font:inherit;font-size:12px;font-weight:700;text-align:start;border:0;background:transparent;color:var(--arrive-blue,#0837c9);padding:6px 8px;cursor:pointer}
+.msel .mopt{flex-direction:row;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;color:var(--text-primary);font-size:13px}
+.msel .mopt:hover{background:rgba(8,55,201,.08)}
+.msel .mopt input{width:16px;height:16px;flex:none;margin:0}
 select{font:inherit;height:var(--control-h-md);min-width:170px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface-card);color:var(--text-primary);padding:0 8px}
 main{max-width:var(--page-max);margin:0 auto;padding:0 var(--page-pad) 48px}
 .grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:16px}
@@ -262,7 +272,7 @@ const lsGet = k => { try { return localStorage.getItem(k) } catch(e) { return nu
 const lsSet = (k, v) => { try { localStorage.setItem(k, v) } catch(e) {} };
 
 let D = null;                       // normalized snapshot
-const state = { tab:'overview', month:'', branch:'', emp:'' };
+const state = { tab:'overview', month:[], branch:[], emp:[] };   // الفلاتر متعددة الاختيار؛ مصفوفة فارغة = الكل
 let charts = [];
 
 /* ---------- Load ---------- */
@@ -320,7 +330,7 @@ function showState(msg, retry){
 function banner(html, cls){ $('#app').insertAdjacentHTML('afterbegin', `<div class="notice ${cls||''}">${html}</div>`); }
 
 /* ---------- Filters (parallel over a stable base) ---------- */
-const flt = rows => rows.filter(r => (!state.month || r.m === state.month) && (!state.branch || r.br === state.branch) && (!state.emp || r.emp === state.emp));
+const flt = rows => rows.filter(r => (!state.month.length || state.month.includes(r.m)) && (!state.branch.length || state.branch.includes(r.br)) && (!state.emp.length || state.emp.includes(r.emp)));
 function baseRows(){
   if(state.tab === 'unc') return D.U;
   if(state.tab === 'delivery' || state.tab === 'cancel') return D.O.filter(r => r.sec === state.tab);
@@ -330,19 +340,34 @@ const uniqSorted = a => [...new Set(a)].sort((x, y) => x.localeCompare(y, 'ar'))
 function renderFilters(){
   const base = baseRows();
   const branches = uniqSorted(base.map(r => r.br)), emps = uniqSorted(base.map(r => r.emp));
-  if(state.branch && !branches.includes(state.branch)) state.branch = '';
-  if(state.emp && !emps.includes(state.emp)) state.emp = '';
-  const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label ?? v)}</option>`;
+  state.branch = state.branch.filter(b => branches.includes(b));
+  state.emp = state.emp.filter(e => emps.includes(e));
   $('#filters').innerHTML =
-    `<label>الشهر<select id="fMonth">${opt('', state.month, 'الكل')}${D.months.map(m => opt(m.m, state.month, `${m.m} (${m.from} → ${m.to})`)).join('')}</select></label>` +
-    `<label>الفرع<select id="fBranch">${opt('', state.branch, 'الكل')}${branches.map(b => opt(b, state.branch)).join('')}</select></label>` +
-    `<label>الموظف<select id="fEmp">${opt('', state.emp, 'الكل')}${emps.map(b => opt(b, state.emp)).join('')}</select></label>` +
+    multiSel('fMonth', 'الشهر', D.months.map(m => [m.m, `${m.m} (${m.from} → ${m.to})`]), state.month) +
+    multiSel('fBranch', 'الفرع', branches.map(b => [b, b]), state.branch) +
+    multiSel('fEmp', 'الموظف', emps.map(b => [b, b]), state.emp) +
     `<button class="btn" id="fReset" type="button" style="height:40px">مسح الفلاتر</button>`;
-  $('#fMonth').onchange = e => { state.month = e.target.value; renderBody(); };
-  $('#fBranch').onchange = e => { state.branch = e.target.value; renderBody(); };
-  $('#fEmp').onchange = e => { state.emp = e.target.value; renderBody(); };
-  $('#fReset').onclick = () => { state.month = state.branch = state.emp = ''; render(); };
+  bindMulti('fMonth', 'month'); bindMulti('fBranch', 'branch'); bindMulti('fEmp', 'emp');
+  $('#fReset').onclick = () => { state.month = []; state.branch = []; state.emp = []; render(); };
 }
+// قائمة متعددة الاختيار (checkbox): لا شيء محدد = «الكل»
+function multiSel(id, label, options, selected){
+  const sum = !selected.length ? 'الكل' : selected.length === 1 ? (options.find(o => o[0] === selected[0]) || [0, selected[0]])[1] : `${selected.length} محدد`;
+  return `<div class="msel"><span class="ml">${esc(label)}</span><details id="${id}"><summary>${esc(sum)}</summary><div class="mpop"><button type="button" class="mclr">الكل (مسح التحديد)</button>` +
+    options.map(([v, l]) => `<label class="mopt"><input type="checkbox" value="${esc(v)}" ${selected.includes(v) ? 'checked' : ''}><span>${esc(l)}</span></label>`).join('') + `</div></details></div>`;
+}
+function bindMulti(id, key){
+  const d = document.getElementById(id), sm = d.querySelector('summary');
+  const sync = () => {
+    const boxes = [...d.querySelectorAll('input')], on = boxes.filter(b => b.checked);
+    state[key] = on.map(b => b.value);
+    sm.textContent = !on.length ? 'الكل' : on.length === 1 ? on[0].nextElementSibling.textContent : `${on.length} محدد`;
+    renderBody();
+  };
+  d.querySelectorAll('input').forEach(b => b.onchange = sync);
+  d.querySelector('.mclr').onclick = () => { d.querySelectorAll('input').forEach(b => b.checked = false); sync(); };
+}
+document.addEventListener('click', e => document.querySelectorAll('.msel details[open]').forEach(d => { if(!d.contains(e.target)) d.open = false; }));
 
 /* ---------- Helpers ---------- */
 const TABS = [['overview','نظرة عامة والجولات'],['delivery','مشاكل التسليم'],['cancel','الإلغاءات'],['unc','لم يتم التأكيد']];
@@ -407,15 +432,21 @@ function table(cols, rows, totalRow){
 }
 const kpi = (l, v, s, bad) => `<div class="card kpi ${bad ? 'bad' : ''}"><div class="l">${esc(l)}</div><div class="v num">${esc(v)}</div><div class="s">${esc(s || '')}</div></div>`;
 const card = (t, sub, inner) => `<div class="card"><h3>${esc(t)}</h3><div class="sub">${esc(sub || '')}</div>${inner}</div>`;
-const selMonths = () => state.month ? [state.month] : D.months.map(m => m.m);
+const selMonths = () => state.month.length ? state.month : D.months.map(m => m.m);
 const activeDays = key => selMonths().reduce((a, m) => a + (D.days[key === 'unc' ? 'unc' : 'ops'][key === 'unc' ? m : key + '|' + m] || 0), 0);
 const sumN = (rows, f) => rows.reduce((a, r) => a + (f ? (f(r) ? r.n : 0) : r.n), 0);
 // حالة «اتبلغ على الجروب»: yes / no / blank (الفاضي مُستبعد). بيانات قديمة: 1/true = yes، 0/false = no
 const gs = v => (v === 1 || v === true || v === 'yes') ? 'yes' : (v === '' || v == null) ? 'blank' : 'no';
 // جاهز للاستلام اليوم/غدا (من «نتيجة التحقيق» — يتطلب عمود rdy من الـ Apps Script الجديد)
 function readyTables(rows){
-  if(!D.opsCols.includes('rdy')) return '<div class="notice warn">جدولا «جاهز للاستلام اليوم أو غدا» يحتاجان تحديث الـ Apps Script (عمود rdy من «نتيجة التحقيق») ثم نشر نسخة جديدة.</div>';
+  const hasRdy = D.opsCols.includes('rdy'), hasSoon = D.opsCols.includes('soon');
+  if(!hasRdy && !hasSoon) return '<div class="notice warn">جدولا «جاهز للاستلام اليوم أو غدا» يحتاجان عمود «نتيجة التحقيق» في الـ Apps Script (عمود soon أو rdy) ثم نشر نسخة جديدة.</div>';
   const mk = (key, head) => {
+    if(!hasRdy){   // عمود soon: 1 = «جاهز للاستلام اليوم أو غدا» في نتيجة التحقيق (بدون فصل اليوم عن غدا)
+      const list = [...group(rows, r => r[key])].map(([k, rs]) => { const t = sumN(rs), ab = sumN(rs, r => r.soon === 1); return { name:k, ab, t, p:pct(ab, t) }; }).filter(x => x.ab > 0).sort((x, y) => y.ab - x.ab);
+      const AB = list.reduce((x, y) => x + y.ab, 0), T = list.reduce((x, y) => x + y.t, 0);
+      return table([{h:head,k:'name'},{h:'جاهز للاستلام اليوم أو غدا',k:'ab',n:1},{h:'إجمالي سجلاته',k:'t',n:1},{h:'% من سجلاته',k:'p',n:1}], list, { name:'الإجمالي', ab:N(AB), t:N(T), p:pct(AB, T) });
+    }
     const list = [...group(rows, r => r[key])].map(([k, rs]) => { const t = sumN(rs), a = sumN(rs, r => r.rdy === 'today'), b = sumN(rs, r => r.rdy === 'tomorrow'); return { name:k, a, b, ab:a + b, t, p:pct(a + b, t) }; }).filter(x => x.ab > 0).sort((x, y) => y.ab - x.ab);
     const A = list.reduce((x, y) => x + y.a, 0), B = list.reduce((x, y) => x + y.b, 0), T = list.reduce((x, y) => x + y.t, 0);
     return table([{h:head,k:'name'},{h:'جاهز اليوم',k:'a',n:1},{h:'جاهز غدا',k:'b',n:1},{h:'الإجمالي (اليوم + غدا)',k:'ab',n:1},{h:'إجمالي سجلاته',k:'t',n:1},{h:'% من سجلاته',k:'p',n:1}], list, { name:'الإجمالي', a:N(A), b:N(B), ab:N(A + B), t:N(T), p:pct(A + B, T) });
@@ -434,11 +465,11 @@ function opsTables(rows){
   const byEmp = [...group(rows, r => r.emp)].map(([k, rs]) => ({ name:k, ...respStats(rs) })).sort((a, b) => b.tot - a.tot);
   const byBr  = [...group(rows, r => r.br)].map(([k, rs]) => ({ name:k, share:pct(sumN(rs), secTotal), ...respStats(rs) })).sort((a, b) => b.tot - a.tot);
   const S = respStats(rows);
-  const colsE = [{h:'الموظف',k:'name'},{h:'الإجمالي',k:'tot',n:1},{h:'تم الرد',k:'res',n:1},{h:'لم يتم الرد',k:'nor',n:1},{h:'نسبة الرد',k:'rate',n:1},{h:'جاهز للاستلام',k:'ready',n:1},{h:'% جاهز من تم الرد',k:'readyPct',n:1}];
+  const colsE = [{h:'الموظف',k:'name'},{h:'الإجمالي',k:'tot',n:1},{h:'تم الرد',k:'res',n:1},{h:'لم يتم الرد',k:'nor',n:1},{h:'حالة أبديت',k:'oth',n:1},{h:'نسبة الرد',k:'rate',n:1},{h:'جاهز للاستلام',k:'ready',n:1},{h:'% جاهز من تم الرد',k:'readyPct',n:1}];
   const tot = o => ({ name:'الإجمالي', ...o });
   return { byEmp, byBr, S, colsE,
     empHtml: table(colsE, byEmp, tot(S)),
-    brHtml: table([{h:'الفرع',k:'name'},{h:'الإجمالي',k:'tot',n:1},{h:'% من الإجمالي',k:'share',n:1},{h:'تم الرد',k:'res',n:1},{h:'نسبة الرد',k:'rate',n:1},{h:'جاهز للاستلام',k:'ready',n:1},{h:'% جاهز من تم الرد',k:'readyPct',n:1}], byBr, tot({ ...S, share:'100%' })) };
+    brHtml: table([{h:'الفرع',k:'name'},{h:'الإجمالي',k:'tot',n:1},{h:'% من الإجمالي',k:'share',n:1},{h:'تم الرد',k:'res',n:1},{h:'لم يتم الرد',k:'nor',n:1},{h:'حالة أبديت',k:'oth',n:1},{h:'نسبة الرد',k:'rate',n:1},{h:'جاهز للاستلام',k:'ready',n:1},{h:'% جاهز من تم الرد',k:'readyPct',n:1}], byBr, tot({ ...S, share:'100%' })) };
 }
 function outcomesBlock(rows, key = 'emp', head = 'الموظف'){
   const resp = rows.filter(r => r.fin === 'responded');
@@ -448,8 +479,19 @@ function outcomesBlock(rows, key = 'emp', head = 'الموظف'){
   const empNames = uniqSorted(resp.map(r => r[key]));
   const cell = (e, t) => sumN(resp.filter(r => r[key] === e && bucket(r.sol) === t));
   const cols = [...top, ...(types.length > top.length ? ['أخرى'] : [])];
-  const rowsT = empNames.map(e => { const tot = sumN(resp.filter(r => r[key] === e)); const o = { name:e, tot }; cols.forEach((t, i) => { const c = cell(e, t); o['c' + i] = `${N(c)} (${pct(c, tot)})`; }); return o; });
-  const html = table([{h:head,k:'name'},{h:'إجمالي تم الرد',k:'tot',n:1}, ...cols.map((t, i) => ({h:t, k:'c' + i, n:1}))], rowsT);
+  // ثلاث فئات للإدارة كنسبة من إجمالي «تم الرد»: جاهز للاستلام اليوم/غدا (من نتيجة التحقيق)، إلغاء الشحنة، تأجيل لأبعد من الغد (من نوع الحل)
+  const hasRdy = D.opsCols.includes('rdy'), hasSoon = D.opsCols.includes('soon');
+  const CATS = [
+    // «جاهز للاستلام اليوم أو غدا» من «نتيجة التحقيق» (عمود soon أو rdy)؛ وإن لم يصل بعد من السيرفر نستخدم «نوع الحل»
+    { h:'جاهز للاستلام اليوم أو غدا', f:hasRdy ? (r => r.rdy === 'today' || r.rdy === 'tomorrow') : hasSoon ? (r => r.soon === 1) : (r => /جاهز.*(اليوم|غد|بكر)/.test(String(r.sol || ''))) },
+    { h:'إلغاء الشحنة', f:r => /[إأا]لغاء/.test(String(r.sol || '')) },
+    { h:'تأجيل لأبعد من الغد', f:r => /ت[أا]جيل/.test(String(r.sol || '')) }
+  ];
+  const catCell = (rs, c, tot) => c.off ? '—' : `${N(sumN(rs, c.f))} (${pct(sumN(rs, c.f), tot)})`;
+  const rowsT = empNames.map(e => { const rs = resp.filter(r => r[key] === e), tot = sumN(rs); const o = { name:e, tot }; CATS.forEach((c, i) => { o['k' + i] = catCell(rs, c, tot); }); cols.forEach((t, i) => { const c = cell(e, t); o['c' + i] = `${N(c)} (${pct(c, tot)})`; }); return o; });
+  const totRow = { name:'الإجمالي', tot:N(sumN(resp)) }; CATS.forEach((c, i) => { totRow['k' + i] = catCell(resp, c, sumN(resp)); });
+  cols.forEach((t, i) => { const c = sumN(resp.filter(r => bucket(r.sol) === t)); totRow['c' + i] = `${N(c)} (${pct(c, sumN(resp))})`; });
+  const html = table([{h:head,k:'name'},{h:'إجمالي تم الرد',k:'tot',n:1}, ...CATS.map((c, i) => ({h:c.h + ' (% من تم الرد)', k:'k' + i, n:1})), ...cols.map((t, i) => ({h:t, k:'c' + i, n:1}))], rowsT, totRow);
   return { html, cols, empNames, cell };
 }
 function renderOps(sec){
@@ -462,7 +504,7 @@ function renderOps(sec){
     kpi('نسبة الرد', T.S.rate, `تم الرد ${N(T.S.res)} من ${N(T.S.res + T.S.nor)} (تم الرد + لم يتم الرد)`) +
     kpi('جاهز للاستلام', N(T.S.ready), T.S.readyPct + ' من تم الرد') +
     (isC ? kpi('FAKE (افتراض A3)', N(sumN(rows, r => r.fake)), pct(sumN(rows, r => r.fake), T.S.tot) + ' من الإلغاءات', true) : '') + `</div>`;
-  if(T.S.oth) h += `<div class="notice warn">يوجد ${N(T.S.oth)} سجل بحالة نهائية غير «تم الرد/لم يتم الرد» — مُستبعد من نسبة الرد ومُدرج في الإجمالي فقط.</div>`;
+  if(T.S.oth) h += `<div class="notice warn">يوجد ${N(T.S.oth)} سجل بحالة «حالة أبديت» (حالة نهائية غير «تم الرد» / «لم يتم الرد») — تُحتسب من إجمالي الأوردرات فقط، وليست من «تم الرد» ولا «لم يتم الرد»، وبالتالي لا تدخل في نسبة الرد.</div>`;
   h += `<div class="grid two">${card('نسبة الرد لكل موظف', `من إجمالي ${name} (تم الرد ÷ (تم الرد + لم يتم الرد))`, '<div class="chartbox"><canvas id="cEmp"></canvas></div>')}` +
        card('الإجمالي حسب الفرع', 'عدد ونسبة كل فرع من إجمالي ' + name, '<div class="chartbox"><canvas id="cBr"></canvas></div>') + `</div>`;
   h += `<div class="sec-title">أداء الموظفين</div>${T.empHtml}<div class="sec-title">أداء الفروع</div>${T.brHtml}`;
@@ -497,16 +539,16 @@ function renderUnc(){
     kpi('مراجعة TRUE', N(tr), pct(tr, tot) + ' من الإجمالي') +
     kpi('مراجعة FAKE', N(fake), pct(fake, tot) + ' من الإجمالي', true) +
     kpi('FAKE لم يتم التبليغ على الجروب', N(fakeNo), `${pct(fakeNo, fake)} من FAKE — اتبلّغ: ${N(fakeGrp)}${fakeBlank ? ' — فاضي (مستبعد): ' + N(fakeBlank) : ''}`, true) + `</div>`;
-  const stKey = rows.some(r => r.sp) ? 'sp' : 'st', stTitle = stKey === 'sp' ? 'الحالات (حالة الشحنة — تم سحبها)' : 'الحالات (حالة الشحنة بالسيستم)';
+  const stKey = rows.some(r => r.sp) ? 'sp' : 'st', stTitle = 'الحالات (حالة الشحنة تم سحبها)';
   const byST = [...group(rows, r => r[stKey] || 'غير محدد بالمصدر')].map(([k, rs]) => ({ st:k, n:sumN(rs), p:pct(sumN(rs), tot), f:sumN(rs, r => r.rev === 'FAKE') })).sort((a, b) => b.n - a.n);
   h += card(stTitle, 'العدد والنسبة وعدد FAKE في كل حالة', table([{h:'الحالة',k:'st'},{h:'العدد',k:'n',n:1},{h:'%',k:'p',n:1},{h:'منها FAKE',k:'f',n:1}], byST, { st:'الإجمالي', n:N(tot), p:'100%', f:N(fake) }));
   const byBr = [...group(rows, r => r.br)].map(([k, rs]) => { const t = sumN(rs), f = sumN(rs, r => r.rev === 'FAKE'); return { br:k, t, tr:sumN(rs, r => r.rev === 'TRUE'), f, o:sumN(rs, r => r.rev === 'OTHER'), b:sumN(rs, r => r.rev === 'BLANK' || r.rev === 'FALSE'), fp:pct(f, t), g:sumN(rs, r => r.rev === 'FAKE' && gs(r.grp) === 'yes') }; }).sort((a, b) => b.t - a.t);
   h += `<div class="sec-title">نتيجة المراجعة لكل فرع</div><div class="grid two">${card('توزيع المراجعة حسب الفرع', '', '<div class="chartbox"><canvas id="cRev"></canvas></div>')}` +
     card('الجدول', '', table([{h:'الفرع',k:'br'},{h:'الإجمالي',k:'t',n:1},{h:'TRUE',k:'tr',n:1},{h:'FAKE',k:'f',n:1},{h:'% FAKE',k:'fp',n:1},{h:'FAKE مُبلَّغ جروب',k:'g',n:1},{h:'أخرى',k:'o',n:1},{h:'فارغ',k:'b',n:1}], byBr)) + `</div>`;
-  const fk = rows.filter(r => r.rev === 'FAKE'), sts = uniqSorted(fk.map(r => r.st));
-  const mat = [...group(fk, r => r.br)].map(([k, rs]) => { const o = { br:k, t:sumN(rs) }; sts.forEach((s, i) => o['s' + i] = sumN(rs.filter(r => r.st === s))); return o; }).sort((a, b) => b.t - a.t);
-  h += `<div class="sec-title">الـ FAKE: في أي فرع وعلى أي حالات</div>` +
-    table([{h:'الفرع',k:'br'},{h:'إجمالي FAKE',k:'t',n:1}, ...sts.map((s, i) => ({h:s, k:'s' + i, n:1}))], mat, (() => { const o = { br:'الإجمالي', t:N(fake) }; sts.forEach((s, i) => o['s' + i] = N(sumN(fk, r => r.st === s))); return o; })());
+  const fk = rows.filter(r => r.rev === 'FAKE'), sts = uniqSorted(fk.map(r => r[stKey] || NA));
+  const mat = [...group(fk, r => r.br)].map(([k, rs]) => { const o = { br:k, t:sumN(rs) }; sts.forEach((s, i) => o['s' + i] = sumN(rs.filter(r => (r[stKey] || NA) === s))); return o; }).sort((a, b) => b.t - a.t);
+  h += `<div class="sec-title">الـ FAKE: في أي فرع وعلى أي حالة (حالة الشحنة تم سحبها)</div>` +
+    table([{h:'الفرع',k:'br'},{h:'إجمالي FAKE',k:'t',n:1}, ...sts.map((s, i) => ({h:s, k:'s' + i, n:1}))], mat, (() => { const o = { br:'الإجمالي', t:N(fake) }; sts.forEach((s, i) => o['s' + i] = N(sumN(fk, r => (r[stKey] || NA) === s))); return o; })());
   setTimeout(() => chart('cRev', byBr.map(b => b.br), [{label:'TRUE', data:byBr.map(b => b.tr)}, {label:'FAKE', data:byBr.map(b => b.f), backgroundColor:'#EF4444'}, {label:'أخرى/فارغ', data:byBr.map(b => b.o + b.b), backgroundColor:'#CBD5E1'}], { stacked:true }), 0);
   return h;
 }
@@ -540,7 +582,7 @@ function renderAssumptions(){
   const q = D.quality, oc = Object.entries(q.otherClasses || {}).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${esc(k)} (${N(v)})`).join('، ');
   return `<details class="assume card" style="margin-top:24px"><summary>افتراضات غير مؤكدة وجودة البيانات</summary><ul>` +
     `<li><b>A1:</b> الإلغاءات = عمود «تصنيف» يحتوي «الغاء»؛ مشاكل التسليم = يحتوي «تسليم». ${q.ops.unclassified ? `بدون تصنيف: ${N(q.ops.unclassified)} سجل.` : ''} ${q.ops.otherClass ? `تصنيفات أخرى مُستبعدة (${N(q.ops.otherClass)}): ${oc}.` : ''}</li>` +
-    `<li><b>A2:</b> نسبة الرد = تم الرد ÷ (تم الرد + لم يتم الرد) من عمود «الحالة النهائية». حالات أخرى: ${N(q.ops.finalOther)} سجل. «جاهز للاستلام» = «نوع الحل» يحتوي «جاهز للاستلام».</li>` +
+    `<li><b>A2:</b> نسبة الرد = تم الرد ÷ (تم الرد + لم يتم الرد) من عمود «الحالة النهائية». «حالة أبديت» (غيرهما): ${N(q.ops.finalOther)} سجل — تُحتسب من إجمالي الأوردرات فقط. «جاهز للاستلام» = «نوع الحل» يحتوي «جاهز للاستلام».</li>` +
     `<li><b>A3:</b> FAKE في الإلغاءات = ظهور fake/فيك في نتيجة التحقيق أو نوع الحل أو الملاحظات أو حالة الشحنة.</li>` +
     `<li><b>A4:</b> المتوسط اليومي = إجمالي السجلات ÷ عدد الأيام المميزة الفعلية في «تاريخ السحب» للفترة (ليس كل أيام الشهر).</li>` +
     `<li><b>A5:</b> كل صف = متابعة واحدة؛ البوالص المميزة تظهر بجانب الإجمالي. صفوف بلا تاريخ: ${N(q.ops.noDate)} (تسليم/إلغاء)، ${N(q.unc.noDate)} (لم يتم التأكيد). لم يتم التأكيد: مراجعة فارغة ${N(q.unc.reviewBlank)}، قيمة أخرى ${N(q.unc.reviewOther)}.</li>` +
@@ -563,10 +605,10 @@ const rateOf = o => (o.res + o.nor) ? o.res / (o.res + o.nor) : null;
 const fmtPct = v => v == null ? '—' : '<span class="num">' + (v * 100).toFixed(1) + '%</span>';
 const P = (a, b) => '<span class="num">' + pct(a, b) + '</span>';
 function rpPeriod(){
-  const ms = state.month ? D.months.filter(m => m.m === state.month) : D.months;
+  const ms = state.month.length ? D.months.filter(m => state.month.includes(m.m)) : D.months;
   if(!ms.length) return NA;
   const f = ms.map(m => m.from).sort()[0], t = ms.map(m => m.to).sort().slice(-1)[0];
-  return `${state.month || 'كل الشهور'} (${f} → ${t})`;
+  return `${state.month.length ? state.month.join('، ') : 'كل الشهور'} (${f} → ${t})`;
 }
 const rpKpis = list => table([{h:'المؤشر',k:'l'},{h:'القيمة',k:'v',n:1},{h:'ملاحظة / طريقة الحساب',k:'s'}], list.map(([l, v, s]) => ({ l, v, s })));
 function rpExtremes(list, what){
@@ -586,7 +628,7 @@ function rpOps(sec){
   if(isC) k.push(['FAKE (افتراض A3)', N(fk), pct(fk, S.tot) + ' من الإلغاءات']);
   let h = `<section class="rp-sec"><h2>${name}</h2><h3>المؤشرات</h3>${rpKpis(k)}<h3>أداء الموظفين</h3>${T.empHtml}<h3>أداء الفروع</h3>${T.brHtml}<h3>نتائج «تم الرد» لكل موظف (نوع الحل)</h3>${outcomesBlock(rows).html}<h3>نتائج «تم الرد» بالفروع (نوع الحل)</h3>${outcomesBlock(rows, 'br', 'الفرع').html}`;
   { const R = readyTables(rows); if(typeof R !== 'string') h += `<h3>جاهز للاستلام اليوم أو غدا — بالفروع</h3>${R.br}<h3>جاهز للاستلام اليوم أو غدا — بالموظفين</h3>${R.emp}`; }
-  if(S.oth) h += `<p class="rp-note">${N(S.oth)} سجل بحالة نهائية غير «تم الرد/لم يتم الرد» — مُدرج في الإجمالي ومُستبعد من نسبة الرد.</p>`;
+  if(S.oth) h += `<p class="rp-note">${N(S.oth)} سجل بحالة «حالة أبديت» (غير «تم الرد» / «لم يتم الرد») — تُحتسب من إجمالي الأوردرات فقط ولا تدخل في نسبة الرد.</p>`;
   const facts = [`<li>بلغ عدد ${name} <b>${N(S.tot)}</b> سجل متابعة بمتوسط <b>${avg1(S.tot, days)}</b> يوميًا، ونسبة الرد <b><span class="num">${S.rate}</span></b> (تم الرد ${N(S.res)}، لم يتم الرد ${N(S.nor)}).</li>`,
     rpExtremes(T.byEmp, 'الموظفون'), rpExtremes(T.byBr, 'الفروع')].filter(Boolean);
   const todo = [];
@@ -607,15 +649,15 @@ function rpUnc(){
   const fake = sumN(rows, r => r.rev === 'FAKE'), grp = sumN(rows, r => r.rev === 'FAKE' && gs(r.grp) === 'yes'), noRep = sumN(rows, r => r.rev === 'FAKE' && gs(r.grp) === 'no'), tr = sumN(rows, r => r.rev === 'TRUE');
   const k = [['عدد لم يتم التأكيد', N(tot), 'سجلات'], ['المتوسط اليومي (avg)', avg1(tot, days), `÷ ${N(days)} يوم فيه شغل`],
     ['مراجعة TRUE', N(tr), pct(tr, tot)], ['مراجعة FAKE', N(fake), pct(fake, tot)], ['FAKE لم يتم التبليغ على الجروب', N(noRep), `${pct(noRep, fake)} من FAKE — اتبلّغ: ${N(grp)}`]];
-  const stKey = rows.some(r => r.sp) ? 'sp' : 'st', stTitle = stKey === 'sp' ? 'الحالات (حالة الشحنة — تم سحبها)' : 'الحالات (حالة الشحنة بالسيستم)';
+  const stKey = rows.some(r => r.sp) ? 'sp' : 'st', stTitle = 'الحالات (حالة الشحنة تم سحبها)';
   const byST = [...group(rows, r => r[stKey] || 'غير محدد بالمصدر')].map(([x, rs]) => ({ st:x, n:sumN(rs), p:pct(sumN(rs), tot), f:sumN(rs, r => r.rev === 'FAKE') })).sort((a, b) => b.n - a.n);
   const byBr = [...group(rows, r => r.br)].map(([x, rs]) => { const t = sumN(rs), f = sumN(rs, r => r.rev === 'FAKE'); return { br:x, t, tr:sumN(rs, r => r.rev === 'TRUE'), f, fp:pct(f, t), g:sumN(rs, r => r.rev === 'FAKE' && gs(r.grp) === 'yes'), o:sumN(rs, r => r.rev !== 'TRUE' && r.rev !== 'FAKE') }; }).sort((a, b) => b.t - a.t);
-  const fk = rows.filter(r => r.rev === 'FAKE'), sts = uniqSorted(fk.map(r => r.st));
-  const mat = [...group(fk, r => r.br)].map(([x, rs]) => { const o = { br:x, t:sumN(rs) }; sts.forEach((st, i) => o['s' + i] = sumN(rs.filter(r => r.st === st))); return o; }).sort((a, b) => b.t - a.t);
-  const totRow = { br:'الإجمالي', t:N(fake) }; sts.forEach((st, i) => totRow['s' + i] = N(sumN(fk, r => r.st === st)));
+  const fk = rows.filter(r => r.rev === 'FAKE'), sts = uniqSorted(fk.map(r => r[stKey] || NA));
+  const mat = [...group(fk, r => r.br)].map(([x, rs]) => { const o = { br:x, t:sumN(rs) }; sts.forEach((st, i) => o['s' + i] = sumN(rs.filter(r => (r[stKey] || NA) === st))); return o; }).sort((a, b) => b.t - a.t);
+  const totRow = { br:'الإجمالي', t:N(fake) }; sts.forEach((st, i) => totRow['s' + i] = N(sumN(fk, r => (r[stKey] || NA) === st)));
   const h = `<section class="rp-sec"><h2>لم يتم التأكيد</h2><h3>المؤشرات</h3>${rpKpis(k)}<h3>${stTitle}</h3>${table([{h:'الحالة',k:'st'},{h:'العدد',k:'n',n:1},{h:'%',k:'p',n:1},{h:'منها FAKE',k:'f',n:1}], byST, { st:'الإجمالي', n:N(tot), p:'100%', f:N(fake) })}` +
     `<h3>نتيجة المراجعة لكل فرع</h3>${table([{h:'الفرع',k:'br'},{h:'الإجمالي',k:'t',n:1},{h:'TRUE',k:'tr',n:1},{h:'FAKE',k:'f',n:1},{h:'% FAKE',k:'fp',n:1},{h:'FAKE مُبلَّغ جروب',k:'g',n:1},{h:'أخرى/فارغ',k:'o',n:1}], byBr)}` +
-    `<h3>الـ FAKE: الفرع × الحالة</h3>${table([{h:'الفرع',k:'br'},{h:'إجمالي FAKE',k:'t',n:1}, ...sts.map((st, i) => ({ h:st, k:'s' + i, n:1 }))], mat, totRow)}</section>`;
+    `<h3>الـ FAKE: الفرع × حالة الشحنة (تم سحبها)</h3>${table([{h:'الفرع',k:'br'},{h:'إجمالي FAKE',k:'t',n:1}, ...sts.map((st, i) => ({ h:st, k:'s' + i, n:1 }))], mat, totRow)}</section>`;
   const facts = [`<li>بلغ عدد «لم يتم التأكيد» <b>${N(tot)}</b> سجل بمتوسط <b>${avg1(tot, days)}</b> يوميًا؛ مراجعة TRUE ${N(tr)} (${P(tr, tot)})، وFAKE ${N(fake)} (${P(fake, tot)}).</li>`];
   if(fake){ facts.push(`<li>من حالات FAKE (${N(fake)}): اتبلغ على الجروب <b>${N(grp)}</b> (${P(grp, fake)})، ولم يُبلَّغ <b>${N(noRep)}</b>.</li>`);
     if(byBr.length) { const top = [...byBr].sort((a, b) => b.f - a.f)[0]; facts.push(`<li>أعلى فرع في عدد FAKE: <b>${esc(top.br)}</b> (${N(top.f)}، <span class="num">${top.fp}</span> من حالات الفرع).</li>`); }
@@ -634,7 +676,7 @@ function rpAssumptions(){
   const q = D.quality;
   return `<section class="rp-sec"><h2>الافتراضات وجودة البيانات</h2><ul>` +
    `<li><b>A1:</b> الإلغاءات = «تصنيف» يحتوي «الغاء»؛ مشاكل التسليم = يحتوي «تسليم». بدون تصنيف: ${N(q.ops.unclassified)}؛ تصنيفات أخرى مستبعدة: ${N(q.ops.otherClass)}.</li>` +
-   `<li><b>A2:</b> نسبة الرد = تم الرد ÷ (تم الرد + لم يتم الرد). حالات نهائية أخرى: ${N(q.ops.finalOther)}. «جاهز للاستلام» = «نوع الحل» يحتوي «جاهز للاستلام».</li>` +
+   `<li><b>A2:</b> نسبة الرد = تم الرد ÷ (تم الرد + لم يتم الرد). «حالة أبديت» (غيرهما): ${N(q.ops.finalOther)}. «جاهز للاستلام» = «نوع الحل» يحتوي «جاهز للاستلام».</li>` +
    `<li><b>A3:</b> FAKE في الإلغاءات = ظهور fake/فيك في نتيجة التحقيق أو نوع الحل أو الملاحظات أو حالة الشحنة (غير مؤكد).</li>` +
    `<li><b>A4:</b> المتوسط اليومي = إجمالي السجلات ÷ الأيام المميزة الفعلية في الفترة. مع فلتر فرع/موظف يبقى المقسوم عليه أيام الفترة كلها.</li>` +
    `<li><b>A5:</b> كل صف = متابعة واحدة. صفوف بلا تاريخ: ${N(q.ops.noDate)} (تسليم/إلغاء)، ${N(q.unc.noDate)} (لم يتم التأكيد). لم يتم التأكيد: مراجعة فارغة ${N(q.unc.reviewBlank)}، قيمة أخرى ${N(q.unc.reviewOther)}.</li>` +
@@ -645,7 +687,7 @@ function buildReport(type){
   const R = parts.map(t => t === 'unc' ? rpUnc() : rpOps(t));
   const facts = R.flatMap(r => r.facts), todo = R.flatMap(r => r.todo);
   const title = RP_TYPES.find(t => t[0] === type)[1];
-  const fl = [state.month && 'الشهر: ' + state.month, state.branch && 'الفرع: ' + state.branch, state.emp && 'الموظف: ' + state.emp].filter(Boolean).join(' — ') || 'بدون فلاتر';
+  const fl = [state.month.length && 'الشهر: ' + state.month.join('، '), state.branch.length && 'الفرع: ' + state.branch.join('، '), state.emp.length && 'الموظف: ' + state.emp.join('، ')].filter(Boolean).join(' — ') || 'بدون فلاتر';
   const gen = new Date(D.generatedAt);
   return `<div class="rp-head"><span class="rp-brand">ARRIVE</span><h1>${esc(title)} — Fleet Validation</h1></div>` +
     `<dl class="rp-meta"><dt>الفترة</dt><dd>${esc(rpPeriod())}</dd><dt>نطاق التقرير</dt><dd>${esc(fl)}</dd><dt>مصدر البيانات</dt><dd>شيت «Validation Monthly Report - Fleet 8-9» — أوراق: مشاكل تسليم، لم يتم التاكيد، round</dd>` +

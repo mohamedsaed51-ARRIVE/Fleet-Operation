@@ -1,6 +1,6 @@
 <!--
   ============================================================================
-  index.html — لوحة متابعة Fleet Support (ARRIVE)
+  index.html — لوحة متابعة Control Tower (ARRIVE)
   ----------------------------------------------------------------------------
   هذا هو الـ Dashboard الوحيد الذي يقدّمه doGet() (Code.gs) على رابط /exec.
   يُقدَّم كـ Apps Script template، فيُحقن فيه رابط الـ Deployment الحالي: serverApiUrl.
@@ -22,7 +22,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام متابعة Fleet Support — ARRIVE</title>
+<title>نظام متابعة Control Tower — ARRIVE</title>
 <!--
   ============================================================================
   DesignSystem.html — ARRIVE Unified Design System (Dashboard + Reports)
@@ -187,7 +187,12 @@ a:hover{text-decoration:underline}
 .ar-main{flex:1;min-width:0;display:flex;flex-direction:column}
 .ar-header{position:sticky;top:0;z-index:var(--z-header);height:var(--header-h);background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;gap:16px;padding:0 24px}
 .ar-menu-btn{display:none}
-.ar-header-logo{display:none;background:var(--arrive-blue);border-radius:var(--radius-sm);padding:7px 12px}
+.ar-topnav{position:sticky;top:var(--header-h);z-index:calc(var(--z-header) - 1);display:flex;gap:4px;padding:0 24px;background:#fff;border-bottom:1px solid var(--border-default);overflow-x:auto}
+.ar-topnav .ar-nav-item{height:46px;border-radius:0;color:var(--text-secondary);font-weight:600;white-space:nowrap;border-bottom:3px solid transparent}
+.ar-topnav .ar-nav-item:hover{background:var(--surface-hover,rgba(8,55,201,.06));color:var(--arrive-blue)}
+.ar-topnav .ar-nav-item.is-active{background:transparent;color:var(--arrive-blue);border-bottom-color:var(--arrive-teal);font-weight:700}
+.ar-topnav .ar-nav-item.is-active i{color:var(--arrive-blue)}
+.ar-header-logo{display:block;background:var(--arrive-blue);border-radius:var(--radius-sm);padding:7px 12px}
 .ar-header-logo img{height:20px;display:block}
 .ar-header-title{flex:1;min-width:0;display:flex;flex-direction:column}
 .ar-header-title b{font-size:18px;line-height:1.3;font-weight:700}
@@ -469,11 +474,7 @@ a:hover{text-decoration:underline}
   .ar-stat-pair{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:899px){
-  .ar-sidebar{position:fixed;top:0;bottom:0;right:0;transform:translateX(100%);transition:transform var(--dur-slow) var(--ease-standard);box-shadow:var(--shadow-raised)}
-  .ar-sidebar.is-open{transform:none}
-  .ar-scrim.is-open{display:block;position:fixed;inset:0;background:var(--overlay-navy,rgba(15,23,42,.6));z-index:calc(var(--z-drawer) - 1)}
-  .ar-menu-btn{display:inline-flex}
-  .ar-header-logo{display:block}
+  .ar-topnav{padding:0 10px}
   .ar-header{padding:0 14px;gap:10px}
   .ar-content{padding:16px 14px}
   .ar-grid-2{grid-template-columns:1fr}
@@ -581,15 +582,15 @@ a:hover{text-decoration:underline}
    ===================================================================== */
 @page{size:A4;margin:0 0 14mm;
   @bottom-left{content:counter(page);font:700 8pt Inter,sans-serif;color:var(--arrive-blue,#0837C9);padding-left:14mm}
-  @bottom-right{content:"ARRIVE — نظام متابعة Fleet Support";font:400 8pt Cairo,Inter,sans-serif;color:var(--arrive-gray,#64748B);padding-right:14mm}}
+  @bottom-right{content:"ARRIVE — نظام متابعة Control Tower";font:400 8pt Cairo,Inter,sans-serif;color:var(--arrive-gray,#64748B);padding-right:14mm}}
 @page rp-body{size:A4;margin:0 0 14mm;
   @bottom-left{content:counter(page);font:700 8pt Inter,sans-serif;color:var(--arrive-blue,#0837C9);padding-left:14mm}
-  @bottom-right{content:"ARRIVE — نظام متابعة Fleet Support";font:400 8pt Cairo,Inter,sans-serif;color:var(--arrive-gray,#64748B);padding-right:14mm}}
+  @bottom-right{content:"ARRIVE — نظام متابعة Control Tower";font:400 8pt Cairo,Inter,sans-serif;color:var(--arrive-gray,#64748B);padding-right:14mm}}
 @page rp-cover{size:A4;margin:0;@bottom-left{content:none}@bottom-right{content:none}}
 .rp-cover{page:rp-cover;break-after:page}
 @media print{
   html,body{background:#fff!important}
-  .ar-sidebar,.ar-header,.ar-filterbar,.ar-footer,.ar-scrim,.no-print,.ar-modal{display:none!important}
+  .ar-topnav,.ar-header,.ar-filterbar,.ar-footer,.no-print,.ar-modal{display:none!important}
   .ar-shell,.ar-main{display:block!important}
   .ar-content{padding:0;max-width:none}
   .ar-panel,.ar-table-card,.ar-kpi{box-shadow:none}
@@ -615,31 +616,15 @@ a:hover{text-decoration:underline}
 <div class="ar-shell">
 
   <!-- ===================== Sidebar (يمين) ===================== -->
-  <aside class="ar-sidebar" id="sidebar">
-    <div class="ar-brand"><img data-logo alt="ARRIVE"></div>
-    <div class="ar-sys-name">نظام متابعة Fleet Support</div>
-    <nav class="ar-nav" id="mainNav" aria-label="التنقل الرئيسي">
-      <button class="ar-nav-item is-active" data-page="page-home" type="button"><i class="fa-solid fa-house" aria-hidden="true"></i><span class="lbl">الملخص التنفيذي</span></button>
-      <button class="ar-nav-item" data-page="page-dashboard" type="button"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span class="lbl">لوحة المتابعة</span></button>
-      <button class="ar-nav-item" data-page="page-branches" type="button"><i class="fa-solid fa-building" aria-hidden="true"></i><span class="lbl">أداء الفروع</span></button>
-      <button class="ar-nav-item" data-page="page-employees" type="button"><i class="fa-solid fa-users" aria-hidden="true"></i><span class="lbl">أداء الموظفين</span></button>
-      <button class="ar-nav-item" data-page="page-insights" type="button"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i><span class="lbl">تحليل الحالات</span></button>
-      <button class="ar-nav-item" data-page="page-open" type="button"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span class="lbl">الحالات المفتوحة</span><span class="ar-nav-badge" id="navOpenBadge" hidden>0</span></button>
-      <button class="ar-nav-item" data-page="page-reports" type="button"><i class="fa-solid fa-file-lines" aria-hidden="true"></i><span class="lbl">التقارير</span></button>
-    </nav>
-    <div class="ar-sidebar-foot"><b>ARRIVE</b><br>لوحة متابعة Fleet Support<br>البيانات من Master Data</div>
-  </aside>
-  <div class="ar-scrim" id="scrim"></div>
 
   <div class="ar-main">
 
     <!-- ===================== Header ===================== -->
     <header class="ar-header">
-      <button class="ar-btn ar-btn-ghost icon ar-menu-btn" id="menuBtn" type="button" aria-label="القائمة"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
       <div class="ar-header-logo"><img data-logo alt="ARRIVE"></div>
       <div class="ar-header-title">
         <b id="headerTitle">الملخص التنفيذي</b>
-        <span><span id="headerSub">نظام متابعة Fleet Support</span> · <i class="fa-solid fa-rotate" aria-hidden="true"></i> آخر تحديث للوحة: <span class="num" id="tsDashboard">—</span></span>
+        <span><span id="headerSub">نظام متابعة Control Tower</span> · <i class="fa-solid fa-rotate" aria-hidden="true"></i> آخر تحديث للوحة: <span class="num" id="tsDashboard">—</span></span>
       </div>
       <div class="ar-header-actions">
         <span class="ar-sync is-loading" id="statusPill" role="status"><i class="fa-solid fa-rotate" id="statusIcon" aria-hidden="true"></i><span class="tx">حالة النظام: <span id="systemStatus">جارٍ التحميل…</span></span></span>
@@ -647,6 +632,16 @@ a:hover{text-decoration:underline}
         <button class="ar-btn ar-btn-ghost icon" id="settingsBtn" type="button" title="إعدادات رابط الـ API" aria-label="إعدادات الاتصال"><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
       </div>
     </header>
+
+    <!-- التنقل أعلى الصفحة -->
+    <nav class="ar-topnav" id="mainNav" aria-label="التنقل الرئيسي">
+      <button class="ar-nav-item is-active" data-page="page-home" type="button"><i class="fa-solid fa-house" aria-hidden="true"></i><span class="lbl">الملخص التنفيذي</span></button>
+      <button class="ar-nav-item" data-page="page-dashboard" type="button"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span class="lbl">لوحة المتابعة</span></button>
+      <button class="ar-nav-item" data-page="page-branches" type="button"><i class="fa-solid fa-building" aria-hidden="true"></i><span class="lbl">أداء الفروع</span></button>
+      <button class="ar-nav-item" data-page="page-employees" type="button"><i class="fa-solid fa-users" aria-hidden="true"></i><span class="lbl">أداء الموظفين</span></button>
+      <button class="ar-nav-item" data-page="page-insights" type="button"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i><span class="lbl">تحليل الحالات</span></button>
+      <button class="ar-nav-item" data-page="page-reports" type="button"><i class="fa-solid fa-file-lines" aria-hidden="true"></i><span class="lbl">التقارير</span></button>
+    </nav>
 
     <main class="ar-content">
 
@@ -745,7 +740,7 @@ a:hover{text-decoration:underline}
             <div class="ar-panel-body"><div class="ar-chart" id="hostEmployee"><canvas id="chEmployee"></canvas></div><div class="ar-note" id="noteEmployee" hidden></div></div>
           </div>
         </div>
-        <div class="ar-grid-3">
+        <div class="ar-grid-2">
           <div class="ar-panel">
             <div class="ar-panel-head"><div><h3>عدد المشاكل حسب Account</h3><p>الوحدة: عدد الحالات.</p></div></div>
             <div class="ar-panel-body"><div class="ar-chart" id="hostAccount"><canvas id="chAccount"></canvas></div><div class="ar-note" id="noteAccount" hidden></div></div>
@@ -753,10 +748,6 @@ a:hover{text-decoration:underline}
           <div class="ar-panel">
             <div class="ar-panel-head"><div><h3>أكثر أنواع المشاكل</h3><p>الوحدة: عدد الحالات.</p></div></div>
             <div class="ar-panel-body"><div class="ar-chart" id="hostType"><canvas id="chType"></canvas></div><div class="ar-note" id="noteType" hidden></div></div>
-          </div>
-          <div class="ar-panel">
-            <div class="ar-panel-head"><div><h3>تم الحل / قيد المتابعة / لم يتم الحل</h3><p>توزيع الحالات حسب الفئة.</p></div></div>
-            <div class="ar-panel-body"><div id="dashDonutHost"></div></div>
           </div>
         </div>
         <div class="ar-panel ar-stack">
@@ -787,6 +778,7 @@ a:hover{text-decoration:underline}
                 <option value="weekday">حسب يوم الأسبوع</option>
                 <option value="monthPart">حسب أسبوع الشهر</option>
                 <option value="hour">حسب فترة اليوم (وقت التسجيل)</option>
+                <option value="hourly">حسب الساعة (12:00 ، 13:00 ، 14:00 …)</option>
               </select>
             </div>
           </div>
@@ -796,6 +788,7 @@ a:hover{text-decoration:underline}
           <div class="ar-panel-head"><div><h3>عدد الحالات في كل فترة</h3><p>الفترة الأعلى (فترة الضغط) باللون الفيروزي — الوحدة: عدد الحالات.</p></div></div>
           <div class="ar-panel-body"><div class="ar-chart" id="hostPeriod"><canvas id="chPeriod"></canvas></div></div>
         </div>
+        <div id="periodPivotHost"></div>
         <div id="periodTableHost"></div>
         <div class="ar-note ar-stack" id="periodNote"></div>
       </section>
@@ -920,11 +913,6 @@ a:hover{text-decoration:underline}
         <div id="driverTableHost"></div>
       </section>
 
-      <!-- ===================== 5) الحالات المفتوحة ===================== -->
-      <section class="page" id="page-open">
-        <div class="ar-page-head"><div><h2>الحالات المفتوحة</h2><p>الحالات التي لم يتم حلها وقيد المتابعة فقط — تتحدث لحظيًا من Master Data.</p></div></div>
-        <div id="openTableHost"></div>
-      </section>
 
       <!-- ===================== 6) التقارير ===================== -->
       <section class="page" id="page-reports">
@@ -943,7 +931,7 @@ a:hover{text-decoration:underline}
 
     </main>
 
-    <footer class="ar-footer">ARRIVE — نظام متابعة Fleet Support<span class="sep">|</span>البيانات من Master Data<span class="sep">|</span>made by hager shabaan</footer>
+    <footer class="ar-footer">ARRIVE — نظام متابعة Control Tower<span class="sep">|</span>البيانات من Master Data<span class="sep">|</span>made by hager shabaan</footer>
   </div>
 </div>
 
@@ -962,7 +950,7 @@ a:hover{text-decoration:underline}
 
 <script>
 /* ==================================================================
-   Fleet Support Dashboard — منطق الصفحة
+   Control Tower Dashboard — منطق الصفحة
    ------------------------------------------------------------------
    القسم A  طبقة البيانات (apiCall / الفلاتر / الاتصال)  ← لم يتغير منطقها
    القسم B  أدوات التنسيق (أرقام، تواريخ، حالات)
@@ -1000,7 +988,6 @@ const GAS_RUN_MAP = {
   accountBreakdown:      filters => ['getAccountBreakdown', [filters]],
   problemTypeBreakdown:  filters => ['getProblemTypeBreakdown', [filters]],
   dailyTrend:            filters => ['getDailyTrend', [filters]],
-  openCases:             filters => ['getOpenCases', [filters]],
   filterOptions:         ()      => ['getFilterOptions', []],
   reportsBundle:         filters => ['getReportsBundle', [filters]],
   dailyStatusBreakdown:  filters => ['getDailyStatusBreakdown', [filters]],
@@ -1486,7 +1473,6 @@ const PAGES = {
   'page-branches':  { title: 'أداء الفروع' },
   'page-employees': { title: 'أداء الموظفين' },
   'page-insights':  { title: 'تحليل الحالات' },
-  'page-open':      { title: 'الحالات المفتوحة' },
   'page-reports':   { title: 'التقارير' }
 };
 function goToPage(pageId) {
@@ -1496,8 +1482,6 @@ function goToPage(pageId) {
   closeSidebar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-function openSidebar() { $('sidebar').classList.add('is-open'); $('scrim').classList.add('is-open'); }
-function closeSidebar() { $('sidebar').classList.remove('is-open'); $('scrim').classList.remove('is-open'); }
 
 /* ---------- Connection status ---------- */
 function setLoading(on) {
@@ -1544,14 +1528,12 @@ async function loadAll() {
 /** الحالات المفتوحة والتحليلات: تُطلب بعد الأساسيات (الكاش ساخن فلا تُعاد قراءة الشيت) وتُعرض فور وصولها. */
 function deferredPlaceholders() {
   setHTML('teamRoleText', '<div class="ar-team-text muted">جارٍ تحميل التحليلات…</div>');
-  const b = $('navOpenBadge'); if (b) b.hidden = true;
 }
 async function loadDeferred(f, token) {
   deferredPlaceholders();
   setText('systemStatus', 'جارٍ تحميل باقي البيانات…');
   const jobs = [
-    apiCall('analytics', f).then(a => { if (token === loadToken) { state.data.analytics = a; renderAnalytics(a); } }),
-    apiCall('openCases', f).then(c => { if (token === loadToken) { state.data.openCases = c; renderOpenCases(c); } })
+    apiCall('analytics', f).then(a => { if (token === loadToken) { state.data.analytics = a; renderAnalytics(a); } })
   ];
   const res = await Promise.allSettled(jobs);
   if (token !== loadToken) return;
@@ -1572,7 +1554,6 @@ function onFullAppData(data) {
   renderBranchPage(data.byBranch);
   renderEmployeePage(data.byEmployee, data.kpis);
   if (data.analytics) renderAnalytics(data.analytics);
-  if (data.openCases) renderOpenCases(data.openCases);
   checkReportStale();
 }
 
@@ -1679,7 +1660,6 @@ function renderDashboardCharts(d) {
   bar('chEmployee', e.map(x => x.name), e.map(x => x.total), { horizontal: true }); topNote('noteEmployee', e.length, d.byEmployee.length);
   bar('chAccount', a.map(x => x.name), a.map(x => x.total), { horizontal: true }); topNote('noteAccount', a.length, d.byAccount.length);
   bar('chType', t.map(x => x.name), t.map(x => x.total), { horizontal: true }); topNote('noteType', t.length, d.byProblemType.length);
-  renderStatusDonut('dashDonutHost', d.kpis, 'chDashDonut');
   line('chDaily', d.dailyTrend.map(x => x.date), d.dailyTrend.map(x => x.total));
 }
 
@@ -1771,13 +1751,6 @@ function onEmployeeCompare(res) {
   grids.employeeCompare.setRows(res.rows);
   const top6 = res.rows.slice(0, 6);
   groupedBar('chEmployeeCompare', top6.map(r => r.name), top6.map(r => r.totalA), top6.map(r => r.totalB), res.monthA, res.monthB);
-}
-
-/* ---------- الحالات المفتوحة ---------- */
-function renderOpenCases(cases) {
-  grids.open.setRows(cases || []);
-  const n = (cases || []).length;
-  const b = $('navOpenBadge'); b.hidden = !n; b.textContent = n > 999 ? '999+' : n;
 }
 
 /* ================================================================== */
@@ -1907,14 +1880,22 @@ function renderMonthly(a) {
 }
 
 /* ---------- 3) فترات الإرسال وفترة الضغط ---------- */
-const PERIOD_NAMES = { weekday: 'يوم الأسبوع', monthPart: 'أسبوع الشهر', hour: 'فترة اليوم' };
+const PERIOD_NAMES = { weekday: 'يوم الأسبوع', monthPart: 'أسبوع الشهر', hour: 'فترة اليوم', hourly: 'الساعة' };
 function renderPeriods(a) {
   const mode = val('periodMode') || 'weekday', p = (a.periods || {})[mode] || { rows: [], missing: 0 };
   const rows = p.rows, sum = sumRows(rows, 'total');
   grids.period.setRows(rows);
+  // جدول محوري بالساعات (12:00 … Grand Total) — يظهر فقط في تقسيم «حسب الساعة»
+  let pivot = '';
+  if (mode === 'hourly' && sum) {
+    const cols = [{ key: 'k', type: 'name', label: 'الساعة' }].concat(rows.map((r, i) => ({ key: 'h' + i, type: 'int', label: r.label }))).concat([{ key: 'gt', type: 'int', label: 'Grand Total' }]);
+    const o = { k: 'عدد الحالات', gt: sum }; rows.forEach((r, i) => { o['h' + i] = r.total; });
+    pivot = '<div class="ar-panel ar-stack"><div class="ar-panel-head"><div><h3>عدد الحالات حسب الساعة</h3><p>الساعات التي بها حالات فقط — الوحدة: عدد الحالات.</p></div></div><div class="ar-panel-body" style="overflow-x:auto">' + staticTable(cols, [o]) + '</div></div>';
+  }
+  setHTML('periodPivotHost', pivot);
   const lbl = r => r.label.replace(/\s*\(.*\)$/, '');
   if (!sum) {
-    setHTML('periodPeakHost', alertHTML('info', 'لا توجد بيانات لهذا التقسيم', mode === 'hour' ? 'لا توجد سجلات بوقت تسجيل صالح (Record ID) ضمن الفلاتر الحالية.' : 'لا توجد سجلات بتاريخ صالح ضمن الفلاتر الحالية.'));
+    setHTML('periodPeakHost', alertHTML('info', 'لا توجد بيانات لهذا التقسيم', (mode === 'hour' || mode === 'hourly') ? ('لا توجد سجلات بوقت تسجيل صالح (Record ID) ضمن الفلاتر الحالية.' + (mode === 'hourly' && !(a.periods || {}).hourly ? ' تقسيم «حسب الساعة» يحتاج تحديث الـ Apps Script (انظر apps-script/support-hourly-patch.md) ثم نشر نسخة جديدة.' : '')) : 'لا توجد سجلات بتاريخ صالح ضمن الفلاتر الحالية.'));
     destroyChart('chPeriod'); toggleEmpty('chPeriod', true);
   } else {
     const peaks = rows.filter(r => r.isPeak);
@@ -1924,7 +1905,7 @@ function renderPeriods(a) {
     bar('chPeriod', rows.map(lbl), rows.map(r => r.total));
   }
   const notes = ['«فترة الضغط» = الفترة الأعلى عددًا في التقسيم المختار.'];
-  if (mode === 'hour') notes.push('فترات اليوم محسوبة من وقت تسجيل الحالة (Record ID) — وقت إدخال الموظفة وقد لا يطابق وقت إرسال الفرع للحالة.' + (p.missing ? ' ' + fInt(p.missing) + ' سجل بلا وقت تسجيل صالح مستبعد من هذا التقسيم.' : ''));
+  if (mode === 'hour' || mode === 'hourly') notes.push('فترات اليوم محسوبة من وقت تسجيل الحالة (Record ID) — وقت إدخال الموظفة وقد لا يطابق وقت إرسال الفرع للحالة.' + (p.missing ? ' ' + fInt(p.missing) + ' سجل بلا وقت تسجيل صالح مستبعد من هذا التقسيم.' : ''));
   else if (p.missing) notes.push(fInt(p.missing) + ' سجل بلا تاريخ صالح مستبعد من هذا التقسيم.');
   setHTML('periodNote', '<i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>' + notes.join(' ') + '</span>');
 }
@@ -2015,7 +1996,7 @@ function renderAnalytics(a) {
 function deriveFindings(b) {
   const k = b.kpis, out = [];
   if (k.open > 0) out.push({ title: 'حالات لم يتم حلها', evidence: N(fInt(k.open)) + ' حالة بحالة «لم يتم الحل» من أصل ' + N(fInt(k.total)) + ' (' + N(fPct(pctOf(k.open, k.total))) + ').', impact: N(fInt(k.open)) + ' حالة ما زالت مفتوحة دون حل ضمن الفترة.' });
-  if (k.followup > 0) out.push({ title: 'حالات قيد المتابعة', evidence: N(fInt(k.followup)) + ' حالة قيد المتابعة (' + N(fPct(pctOf(k.followup, k.total))) + ' من الإجمالي).', impact: 'تحتاج متابعة حتى الإغلاق؛ تُحتسب ضمن الحالات المفتوحة في صفحة الحالات المفتوحة.' });
+  if (k.followup > 0) out.push({ title: 'حالات قيد المتابعة', evidence: N(fInt(k.followup)) + ' حالة قيد المتابعة (' + N(fPct(pctOf(k.followup, k.total))) + ' من الإجمالي).', impact: 'تحتاج متابعة حتى الإغلاق.' });
   const low = b.byBranch.filter(x => x.total > 0 && x.resolutionRatePct < ATTENTION_PCT).slice().sort((a, c) => a.resolutionRatePct - c.resolutionRatePct);
   if (low.length) {
     const pending = low.reduce((s, x) => s + x.followup + x.open, 0);
@@ -2035,13 +2016,13 @@ function buildReportDoc(b, f) {
   const flt = [['الفرع', lab(f.branch)], ['الموظفة', lab(f.employee)], ['Account', lab(f.account)], ['المندوب', lab(f.driver)], ['نوع المشكلة', lab(f.problemType)], ['حالة الشحنة', f.statusBucket ? esc((BUCKET[f.statusBucket] || {}).label || f.statusBucket) : 'الكل']];
   const logo = LOGO_URI ? '<img src="' + LOGO_URI + '" alt="ARRIVE">' : '<b>ARRIVE</b>';
 
-  const cover = '<section class="rp-cover"><div class="logo">' + logo + '</div><div class="sys">نظام متابعة Fleet Support</div>' +
-    '<div class="mid"><div class="kicker">تقرير الإدارة</div><h1>متابعة المشاكل وأداء الفروع<br><em>Fleet Support</em></h1><div class="period">الفترة: ' + periodHtml + '</div></div>' +
-    '<div class="meta"><div><div class="k">القسم</div><div class="v">Fleet Support</div></div><div><div class="k">تاريخ إصدار التقرير</div><div class="v">' + N(today) + '</div></div>' +
-    '<div><div class="k">أُعدّ بواسطة</div><div class="v">لوحة متابعة Fleet Support</div></div><div><div class="k">عدد السجلات في التقرير</div><div class="v">' + N(fInt(k.total)) + '</div></div></div></section>';
+  const cover = '<section class="rp-cover"><div class="logo">' + logo + '</div><div class="sys">نظام متابعة Control Tower</div>' +
+    '<div class="mid"><div class="kicker">تقرير الإدارة</div><h1>متابعة المشاكل وأداء الفروع<br><em>Control Tower</em></h1><div class="period">الفترة: ' + periodHtml + '</div></div>' +
+    '<div class="meta"><div><div class="k">القسم</div><div class="v">Control Tower</div></div><div><div class="k">تاريخ إصدار التقرير</div><div class="v">' + N(today) + '</div></div>' +
+    '<div><div class="k">أُعدّ بواسطة</div><div class="v">لوحة متابعة Control Tower</div></div><div><div class="k">عدد السجلات في التقرير</div><div class="v">' + N(fInt(k.total)) + '</div></div></div></section>';
 
-  const runHead = '<div class="rp-run-head"><span class="lg">' + (LOGO_URI ? '<img src="' + LOGO_URI + '" alt="ARRIVE">' : '<b style="color:#fff">ARRIVE</b>') + '</span><b>تقرير الإدارة — Fleet Support</b><span class="sp"></span><span>' + periodHtml + '</span></div>';
-  const runFoot = '<div class="rp-run-foot"><span>ARRIVE — نظام متابعة Fleet Support</span><span class="sp"></span><span>أُصدر في ' + N(fStamp()) + '</span></div>';
+  const runHead = '<div class="rp-run-head"><span class="lg">' + (LOGO_URI ? '<img src="' + LOGO_URI + '" alt="ARRIVE">' : '<b style="color:#fff">ARRIVE</b>') + '</span><b>تقرير الإدارة — Control Tower</b><span class="sp"></span><span>' + periodHtml + '</span></div>';
+  const runFoot = '<div class="rp-run-foot"><span>ARRIVE — نظام متابعة Control Tower</span><span class="sp"></span><span>أُصدر في ' + N(fStamp()) + '</span></div>';
 
   let body = '';
   const S = kpiSet(k, f, true);
@@ -2265,7 +2246,7 @@ function initGrids() {
   ];
   grids.monthly = new DataGrid('monthlyTableHost', { title: 'الأرقام الشهرية', columns: monthlyCols, searchable: false, pageSize: 12, pageSizes: [12, 24, 60],
     summary: rows => { const o = outcomeSum('الإجمالي')(rows); o.month = 'الإجمالي'; return o; } });
-  grids.period = new DataGrid('periodTableHost', { title: 'الحالات حسب الفترة', searchable: false, pageSize: 12, pageSizes: [12, 24], columns: [
+  grids.period = new DataGrid('periodTableHost', { title: 'الحالات حسب الفترة', searchable: false, summary: rows => ({ label: 'Grand Total', total: sumRows(rows, 'total'), pctOfTotal: 100 }), pageSize: 12, pageSizes: [12, 24], columns: [
     { key: 'label', type: 'name', label: 'الفترة' },
     { key: 'total', type: 'int', label: 'عدد الحالات' },
     { key: 'pctOfTotal', type: 'pct', label: 'النسبة' },
@@ -2293,28 +2274,10 @@ function initGrids() {
     { key: 'topProblemType', type: 'text', label: 'أكثر نوع حالة', sort: r => r.topProblemType ? r.topProblemType.total : null, render: r => nameCount(r.topProblemType) },
     { key: 'solveRatePct', type: 'rate', label: 'نسبة الحل' }
   ] });
-  grids.open = new DataGrid('openTableHost', {
-    title: 'الحالات النشطة', pageSize: 25, pageSizes: [10, 25, 50, 100], searchPlaceholder: 'ابحث في الحالات…',
-    searchKeys: ['waybillCode', 'account', 'driver', 'employee', 'branch'], maxHeight: 620,
-    columns: [
-      { key: 'date', type: 'date', label: 'التاريخ' },
-      { key: 'waybillCode', type: 'id', label: 'كود البوليصة' },
-      { key: 'account', type: 'text', label: 'Account' },
-      { key: 'driver', type: 'text', label: 'اسم المندوب' },
-      { key: 'branch', type: 'text', label: 'الفرع' },
-      { key: 'problemType', type: 'text', label: 'نوع المشكلة' },
-      { key: 'statusLabel', type: 'text', label: 'حالة الشحنة', render: c => { const m = BUCKET[c.statusBucket]; return m ? badge(m.status, c.statusLabel, true) : esc(c.statusLabel || c.status || '—'); } },
-      { key: 'employee', type: 'text', label: 'اسم الموظفة' },
-      { key: 'lastUpdated', type: 'date', label: 'آخر تحديث' },
-      { key: 'notes', type: 'note', label: 'ملاحظات', sortable: false }
-    ]
-  });
 }
 
 function wireEvents() {
   document.querySelectorAll('.ar-nav-item').forEach(t => t.addEventListener('click', () => goToPage(t.dataset.page)));
-  $('menuBtn').addEventListener('click', openSidebar);
-  $('scrim').addEventListener('click', closeSidebar);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSidebar(); closeSettings(); } });
 
   $('applyFiltersBtn').addEventListener('click', loadAll);

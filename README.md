@@ -6,7 +6,7 @@
 |---|---|---|
 | عدم الإبلاغ / عدم إرسال صورة | `pages/non-reporting.html` | Apps Script الخاص بها (+ Sheets CSV احتياطي) |
 | Fleet Validation | `pages/validation.html` | Apps Script الخاص بها (`API_URL` داخل الملف) |
-| Fleet Support | `pages/support.html` | Apps Script الخاص بها (`DEFAULT_API_URL`، أو ⚙️ في الواجهة) |
+| Control Tower (سابقًا Fleet Support) | `pages/support.html` | Apps Script الخاص بها (`DEFAULT_API_URL`، أو ⚙️ في الواجهة) |
 | العرض التقديمي | `pages/presentation.html` | يقرأ من اللوحات الثلاث أعلاه (بدون أرقام ثابتة) |
 
 - كل لوحة محفوظة كما هي بدون تغيير في منطقها أو أرقامها؛ الصفحة الرئيسية تعرضها داخل تبويبات وتحمّل كل لوحة عند أول فتح فقط.
@@ -25,3 +25,9 @@
 - شريحة نتائج التحقيق تحتاج `apps-script/validation-Code-gs-inv-patch.md`.
 - ملء الشاشة، الأسهم للتنقل، «طباعة / PDF» لتصدير كل الشرائح.
 - غير موجود في بيانات اللوحات (لذلك غير مُدرج): نتائج التحقيق التفصيلية (تم التحقيق / مرتجعات / قيد التشغيل)، خصومات المناديب، أسماء مناديب Fake في «لم يتم التأكيد»، وقائمة «المشاكل التي يواجهها القسم».
+
+- تقسيم «حسب الساعة» في Control Tower يحتاج `apps-script/support-hourly-patch.md` (حقل `periods.hourly`).
+- فلاتر Validation (الشهر/الفرع/الموظف) متعددة الاختيار.
+- «المؤشرات الرئيسية»: ملخص مجمّع Control Tower + Validation مع فلتر الشهر (يقرأ من الجسر `window.__deck` في اللوحتين).
+- العرض التقديمي: زر «تنزيل PowerPoint» يولّد ملف .pptx (كل شريحة صورة بنفس التصميم؛ غير قابلة للتحرير النصي) — يحتاج إنترنت لتحميل مكتبتي PptxGenJS وhtml2canvas من cdnjs.
+- Control Tower: قائمة التنقل (الملخص التنفيذي / أداء الفروع …) أفقية أعلى الصفحة بدل الشريط الجانبي.
