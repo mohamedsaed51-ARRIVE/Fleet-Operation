@@ -474,26 +474,20 @@ function opsTables(rows){
     brHtml: table([{h:'الفرع',k:'name'},{h:'الإجمالي',k:'tot',n:1},{h:'% من الإجمالي',k:'share',n:1},{h:'تم الرد',k:'res',n:1},{h:'لم يتم الرد',k:'nor',n:1},{h:'حالة أبديت',k:'oth',n:1},{h:'نسبة الرد',k:'rate',n:1},{h:'جاهز للاستلام',k:'ready',n:1},{h:'% جاهز من تم الرد',k:'readyPct',n:1}], byBr, tot({ ...S, share:'100%' })) };
 }
 function outcomesBlock(rows, key = 'emp', head = 'الموظف'){
+  // إجمالي «تم الرد» ثم نتائجه من عمود «نوع الحل»: إلغاء الشحنة / تأجيل لأبعد من الغد / جاهز للاستلام اليوم أو غدا + Fake — كل رقم ونسبته من إجمالي «تم الرد»
   const resp = rows.filter(r => r.fin === 'responded');
-  const types = [...group(resp, r => r.sol || NA)].map(([k, rs]) => [k, sumN(rs)]).sort((a, b) => b[1] - a[1]);
-  const top = types.slice(0, 8).map(t => t[0]);
-  const bucket = s => top.includes(s || NA) ? (s || NA) : 'أخرى';
-  const empNames = uniqSorted(resp.map(r => r[key]));
-  const cell = (e, t) => sumN(resp.filter(r => r[key] === e && bucket(r.sol) === t));
-  const cols = [...top, ...(types.length > top.length ? ['أخرى'] : [])];
-  // ثلاث فئات للإدارة كنسبة من إجمالي «تم الرد»: جاهز للاستلام اليوم/غدا (من نتيجة التحقيق)، إلغاء الشحنة، تأجيل لأبعد من الغد (من نوع الحل)
   const CATS = [
-    // «جاهز للاستلام اليوم أو غدا» = قيمة في «نوع الحل» (علم ready من السيرفر)؛ أما «نتيجة التحقيق» فتفصّل هذه الحالات لاحقًا
-    { h:'جاهز للاستلام اليوم أو غدا', f:r => r.ready === 1 || /جاهز.*[إا]ستلام/.test(String(r.sol || '')) },
     { h:'إلغاء الشحنة', f:r => /[إأا]لغاء/.test(String(r.sol || '')) },
-    { h:'تأجيل لأبعد من الغد', f:r => /ت[أا]جيل/.test(String(r.sol || '')) }
+    { h:'تأجيل لأبعد من الغد', f:r => /ت[أا]جيل/.test(String(r.sol || '')) },
+    { h:'جاهز للاستلام اليوم أو غدا', f:r => r.ready === 1 || /جاهز.*[إا]ستلام/.test(String(r.sol || '')) },
+    { h:'Fake', f:r => r.fake === 1 }
   ];
-  const catCell = (rs, c, tot) => c.off ? '—' : `${N(sumN(rs, c.f))} (${pct(sumN(rs, c.f), tot)})`;
-  const rowsT = empNames.map(e => { const rs = resp.filter(r => r[key] === e), tot = sumN(rs); const o = { name:e, tot }; CATS.forEach((c, i) => { o['k' + i] = catCell(rs, c, tot); }); cols.forEach((t, i) => { const c = cell(e, t); o['c' + i] = `${N(c)} (${pct(c, tot)})`; }); return o; });
-  const totRow = { name:'الإجمالي', tot:N(sumN(resp)) }; CATS.forEach((c, i) => { totRow['k' + i] = catCell(resp, c, sumN(resp)); });
-  cols.forEach((t, i) => { const c = sumN(resp.filter(r => bucket(r.sol) === t)); totRow['c' + i] = `${N(c)} (${pct(c, sumN(resp))})`; });
-  const html = table([{h:head,k:'name'},{h:'إجمالي تم الرد',k:'tot',n:1}, ...CATS.map((c, i) => ({h:c.h + ' (% من تم الرد)', k:'k' + i, n:1})), ...cols.map((t, i) => ({h:t, k:'c' + i, n:1}))], rowsT, totRow);
-  return { html, cols, empNames, cell };
+  const cell = (rs, c, tot) => `${N(sumN(rs, c.f))} (${pct(sumN(rs, c.f), tot)})`;
+  const empNames = uniqSorted(resp.map(r => r[key]));
+  const rowsT = empNames.map(e => { const rs = resp.filter(r => r[key] === e), tot = sumN(rs); const o = { name:e, tot }; CATS.forEach((c, i) => { o['k' + i] = cell(rs, c, tot); }); return o; });
+  const totRow = { name:'الإجمالي', tot:N(sumN(resp)) }; CATS.forEach((c, i) => { totRow['k' + i] = cell(resp, c, sumN(resp)); });
+  const html = table([{h:head,k:'name'},{h:'إجمالي تم الرد',k:'tot',n:1}, ...CATS.map((c, i) => ({h:c.h, k:'k' + i, n:1}))], rowsT, totRow);
+  return { html, empNames };
 }
 function renderOps(sec){
   const rows = flt(D.O.filter(r => r.sec === sec)), isC = sec === 'cancel', name = isC ? 'الإلغاءات' : 'مشاكل التسليم';
@@ -506,13 +500,11 @@ function renderOps(sec){
     kpi('جاهز للاستلام', N(T.S.ready), T.S.readyPct + ' من تم الرد') +
     (isC ? kpi('FAKE (افتراض A3)', N(sumN(rows, r => r.fake)), pct(sumN(rows, r => r.fake), T.S.tot) + ' من الإلغاءات', true) : '') + `</div>`;
   if(T.S.oth) h += `<div class="notice warn">يوجد ${N(T.S.oth)} سجل بحالة «حالة أبديت» (حالة نهائية غير «تم الرد» / «لم يتم الرد») — تُحتسب من إجمالي الأوردرات فقط، وليست من «تم الرد» ولا «لم يتم الرد»، وبالتالي لا تدخل في نسبة الرد.</div>`;
-  h += `<div class="grid two">${card('نسبة الرد لكل موظف', `من إجمالي ${name} (تم الرد ÷ (تم الرد + لم يتم الرد))`, '<div class="chartbox"><canvas id="cEmp"></canvas></div>')}` +
+  h += `<div class="grid two">${card('نسبة الرد لكل موظف', `من إجمالي ${name} (تم الرد ÷ (تم الرد + لم يتم الرد))`, `<div class="chartbox" style="height:${Math.max(320, T.byEmp.length * 30 + 70)}px"><canvas id="cEmp"></canvas></div>`)}` +
        card('الإجمالي حسب الفرع', 'عدد ونسبة كل فرع من إجمالي ' + name, '<div class="chartbox"><canvas id="cBr"></canvas></div>') + `</div>`;
   h += `<div class="sec-title">أداء الموظفين</div>${T.empHtml}<div class="sec-title">أداء الفروع</div>${T.brHtml}`;
   h += `<div class="sec-title">نتائج «تم الرد» لكل موظف (نوع الحل)</div>${outcomesBlock(rows).html}` +
        `<div class="sec-title">نتائج «تم الرد» بالفروع (نوع الحل)</div>${outcomesBlock(rows, 'br', 'الفرع').html}`;
-  { const R = readyTables(rows);
-    h += typeof R === 'string' ? R : `<div class="sec-title">جاهز للاستلام اليوم أو غدا — بالفروع (من نتيجة التحقيق)</div>${R.br}<div class="sec-title">جاهز للاستلام اليوم أو غدا — بالموظفين (من نتيجة التحقيق)</div>${R.emp}`; }
   if(isC){
     const fk = rows.filter(r => r.fake);
     const byBr = [...group(fk, r => r.br)].map(([k, rs]) => ({ br:k, n:sumN(rs), pc:pct(sumN(rs), sumN(rows.filter(r => r.br === k))) })).sort((a, b) => b.n - a.n);
@@ -567,10 +559,10 @@ function renderOverview(){
   if(R){
     const ms = selMonths(), sel = R.byMonth.filter(x => ms.includes(x.m));
     const cnt = [0, 1, 2, 3, 4].map(i => sel.reduce((a, x) => a + x.r[i], 0)), tot = cnt.reduce((a, b) => a + b, 0);
-    const respByRnd = k => { const rs = flt(D.O.filter(r => r.sec !== 'other' && String(r.rnd).replace(/\D/g, '') === k)); const S = respStats(rs); return { n:S.tot, rate:S.rate }; };
-    const rows = R.labels.map((l, i) => { const rr = respByRnd(String(i + 1)); return { l:`Round ${i + 1} (${l})`, n:N(cnt[i]), p:pct(cnt[i], tot), rn:rr.n ? N(rr.n) : '—', rr:rr.n ? rr.rate : 'غير متاح بالمصدر' }; });
+    const respByRnd = k => { const rs = flt(D.O.filter(r => r.sec !== 'other' && String(r.rnd).replace(/\D/g, '') === k)); const S = respStats(rs); return { n:S.tot, rate:S.rate, res:S.res }; };
+    const rows = R.labels.map((l, i) => { const rr = respByRnd(String(i + 1)); return { l:`Round ${i + 1} (${l})`, n:N(cnt[i]), p:pct(cnt[i], tot), res:rr.n ? N(rr.res) : '—', rp:rr.n ? pct(rr.res, cnt[i]) : 'غير متاح بالمصدر', _res:rr.res }; });
     h += `<div class="grid two">${card('نصيب كل جولة من إجمالي الشغل', 'المصدر: ورقة round — عدد شغل كل جولة ونسبتها من مجموع الجولات للفترة المختارة', '<div class="chartbox"><canvas id="cRnd"></canvas></div>')}` +
-      card('الجدول', 'فلاتر الفرع/الموظف لا تنطبق على أعمدة العدد (الورقة بدون فرع/موظف)', table([{h:'الجولة',k:'l'},{h:'عدد الشغل',k:'n',n:1},{h:'% من الإجمالي',k:'p',n:1},{h:'سجلات بعمود Round',k:'rn',n:1},{h:'نسبة الرد',k:'rr',n:1}], rows, { l:'الإجمالي', n:N(tot), p:'100%' })) + `</div>`;
+      card('الجدول', 'عدد الأوردرات من ورقة round (بدون فلاتر الفرع/الموظف)؛ «تم الرد» من سجلات «مشاكل التسليم» المسجَّل بها رقم الجولة', table([{h:'الجولة',k:'l'},{h:'عدد الأوردرات في الجولة',k:'n',n:1},{h:'% من إجمالي الشغل',k:'p',n:1},{h:'تم الرد في الجولة',k:'res',n:1},{h:'% تم الرد من شغل الجولة',k:'rp',n:1}], rows, { l:'الإجمالي', n:N(tot), p:'100%', res:N(rows.reduce((a, r) => a + (r._res || 0), 0)), rp:pct(rows.reduce((a, r) => a + (r._res || 0), 0), tot) })) + `</div>`;
     if(R.totalMismatchRows) h += `<div class="notice warn">في ${N(R.totalMismatchRows)} يوم مجموع الجولات لا يساوي عمود Total بالشيت — النسب محسوبة على مجموع الجولات الخمس.</div>`;
     if(!D.quality.ops.roundFilled) h += `<div class="notice warn">عمود Round في ورقة «مشاكل تسليم» غير مُعبّأ في المصدر، لذلك نسبة الرد لكل جولة غير متاحة. لتفعيلها يجب تسجيل رقم الجولة على كل متابعة.</div>`;
     setTimeout(() => chart('cRnd', rows.map(r => r.l), [{ label:'عدد الشغل', data:cnt }]), 0);
@@ -628,7 +620,6 @@ function rpOps(sec){
     ['جاهز للاستلام', N(S.ready), S.readyPct + ' من تم الرد']];
   if(isC) k.push(['FAKE (افتراض A3)', N(fk), pct(fk, S.tot) + ' من الإلغاءات']);
   let h = `<section class="rp-sec"><h2>${name}</h2><h3>المؤشرات</h3>${rpKpis(k)}<h3>أداء الموظفين</h3>${T.empHtml}<h3>أداء الفروع</h3>${T.brHtml}<h3>نتائج «تم الرد» لكل موظف (نوع الحل)</h3>${outcomesBlock(rows).html}<h3>نتائج «تم الرد» بالفروع (نوع الحل)</h3>${outcomesBlock(rows, 'br', 'الفرع').html}`;
-  { const R = readyTables(rows); if(typeof R !== 'string') h += `<h3>جاهز للاستلام اليوم أو غدا — بالفروع</h3>${R.br}<h3>جاهز للاستلام اليوم أو غدا — بالموظفين</h3>${R.emp}`; }
   if(S.oth) h += `<p class="rp-note">${N(S.oth)} سجل بحالة «حالة أبديت» (غير «تم الرد» / «لم يتم الرد») — تُحتسب من إجمالي الأوردرات فقط ولا تدخل في نسبة الرد.</p>`;
   const facts = [`<li>بلغ عدد ${name} <b>${N(S.tot)}</b> سجل متابعة بمتوسط <b>${avg1(S.tot, days)}</b> يوميًا، ونسبة الرد <b><span class="num">${S.rate}</span></b> (تم الرد ${N(S.res)}، لم يتم الرد ${N(S.nor)}).</li>`,
     rpExtremes(T.byEmp, 'الموظفون'), rpExtremes(T.byBr, 'الفروع')].filter(Boolean);
