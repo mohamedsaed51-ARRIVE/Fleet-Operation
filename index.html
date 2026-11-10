@@ -194,6 +194,15 @@ function ovMonths() {
 }
 function ctMonthData(ym) {
   var s = bridgeOf("support"); if (!s) return Promise.resolve(null);
+  // أسرع: نستخدم تحليل Control Tower المحمّل أصلًا داخل لوحته (بدون طلب إضافي للسيرفر)
+  try {
+    var A0 = s.state().data.analytics;
+    if (A0 && A0.monthly && A0.monthly.length) {
+      var m0 = ym && A0.monthly.filter(function (x) { return normYM(x.month) === ym; })[0];
+      if (m0) return Promise.resolve(m0);
+      if (!ym && A0.team) return Promise.resolve(A0.team);
+    }
+  } catch (e0) {}
   var key = "ct" + ym; if (ovCache[key]) return ovCache[key];
   var par = ym ? { dateFrom: ym + "-01", dateTo: ym + "-" + new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate() } : {};
   return ovCache[key] = s.call("analytics", par).then(function (a) {
