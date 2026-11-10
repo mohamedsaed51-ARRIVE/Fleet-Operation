@@ -318,6 +318,8 @@ function normMonths(d){
 function normalize(d){
   if(!d || !Array.isArray(d.ops) || !Array.isArray(d.unc)) throw new Error('شكل JSON غير متوقع');
   const toObj = (cols, rows) => rows.map(a => Object.fromEntries(cols.map((k, i) => [k, a[i]])));
+  // السيرفر يرسل «حالة الشحنة تم سحبها» باسم stp — الواجهة كلها تقرؤه باسم sp
+  d.uncCols = d.uncCols.map(c => c === 'stp' ? 'sp' : c);
   d.O = toObj(d.opsCols, d.ops); d.U = toObj(d.uncCols, d.unc);
   normMonths(d);
   return d;
@@ -480,10 +482,9 @@ function outcomesBlock(rows, key = 'emp', head = 'الموظف'){
   const cell = (e, t) => sumN(resp.filter(r => r[key] === e && bucket(r.sol) === t));
   const cols = [...top, ...(types.length > top.length ? ['أخرى'] : [])];
   // ثلاث فئات للإدارة كنسبة من إجمالي «تم الرد»: جاهز للاستلام اليوم/غدا (من نتيجة التحقيق)، إلغاء الشحنة، تأجيل لأبعد من الغد (من نوع الحل)
-  const hasRdy = D.opsCols.includes('rdy'), hasSoon = D.opsCols.includes('soon');
   const CATS = [
-    // «جاهز للاستلام اليوم أو غدا» من «نتيجة التحقيق» (عمود soon أو rdy)؛ وإن لم يصل بعد من السيرفر نستخدم «نوع الحل»
-    { h:'جاهز للاستلام اليوم أو غدا', f:hasRdy ? (r => r.rdy === 'today' || r.rdy === 'tomorrow') : hasSoon ? (r => r.soon === 1) : (r => /جاهز.*(اليوم|غد|بكر)/.test(String(r.sol || ''))) },
+    // «جاهز للاستلام اليوم أو غدا» = قيمة في «نوع الحل» (علم ready من السيرفر)؛ أما «نتيجة التحقيق» فتفصّل هذه الحالات لاحقًا
+    { h:'جاهز للاستلام اليوم أو غدا', f:r => r.ready === 1 || /جاهز.*[إا]ستلام/.test(String(r.sol || '')) },
     { h:'إلغاء الشحنة', f:r => /[إأا]لغاء/.test(String(r.sol || '')) },
     { h:'تأجيل لأبعد من الغد', f:r => /ت[أا]جيل/.test(String(r.sol || '')) }
   ];
