@@ -1907,7 +1907,7 @@ function renderPeriods(a) {
   }
   const notes = ['«فترة الضغط» = الفترة الأعلى عددًا في التقسيم المختار.'];
   if (mode === 'hour' || mode === 'hourly') notes.push('فترات اليوم محسوبة من وقت تسجيل الحالة (Record ID) — وقت إدخال الموظفة وقد لا يطابق وقت إرسال الفرع للحالة.' + (p.missing ? ' ' + fInt(p.missing) + ' سجل بلا وقت تسجيل صالح مستبعد من هذا التقسيم.' : ''));
-  else if (mode === 'shift') notes.push('الفترات من عمود shift (وقت وصول الحالة داخل الشيفت): 11–1 = 13:00، 1–2 = 14:00، 2–4 = 16:00، 4–6 = 18:00، 6–8 = 20:00، 8–10 = 22:00.' + (p.missing ? ' ' + fInt(p.missing) + ' سجل بلا قيمة shift صالحة مستبعد من هذا التقسيم.' : ''));
+  else if (mode === 'shift') notes.push('الفترات من عمود shift (وقت وصول الحالة داخل الشيفت) كما هي في الشيت: 12:00، 13:00، 14:00، 16:00، 17:00، 18:00، 20:00، 22:00، 23:00.' + (p.missing ? ' ' + fInt(p.missing) + ' سجل بلا قيمة shift صالحة مستبعد من هذا التقسيم.' : ''));
   else if (p.missing) notes.push(fInt(p.missing) + ' سجل بلا تاريخ صالح مستبعد من هذا التقسيم.');
   setHTML('periodNote', '<i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>' + notes.join(' ') + '</span>');
 }

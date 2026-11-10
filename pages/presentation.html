@@ -375,7 +375,7 @@ function slides(X){
       add(sl({tag:tagS,title:"الأوردرات الواردة حسب الفترة الزمنية — "+lab,nav:"الأوردرات الواردة حسب الفترة",sub:"إجمالي الأوردرات: "+f(shT)+" — الفترة = وقت وصول الحالة داخل الشيفت (عمود shift)",body:
         '<div class="row" style="height:100%"><div class="fill">'+vbars(sh.map(function(r){return r.label}),[{vals:sh.map(function(r){return r.total}),color:"var(--navy)",labels:sh.map(function(r){return f(r.total)+"<br>"+pc(r.total,shT)})}])+'</div>'+
         '<div class="col" style="width:300px">'+(shPk.length?kb(esc(shPk.map(function(r){return r.label}).join(" و ")),"فترة الضغط — "+f(shPk[0].total)+" حالة ("+pc(shPk[0].total,shT)+")","","navy"):"")+
-        '<div class="box fill"><h4>طريقة الحساب</h4><div class="note">كل حالة تُنسب إلى الفترة التي وصلت فيها: 11–1 = 13:00، 1–2 = 14:00، 2–4 = 16:00، 4–6 = 18:00، 6–8 = 20:00، 8–10 = 22:00.</div></div></div></div>'}));
+        '<div class="box fill"><h4>طريقة الحساب</h4><div class="note">كل حالة تُنسب إلى الفترة المسجَّلة في عمود shift (مثل 13:00 = وصلت بين 11 و1، 14:00 = بين 1 و2، 16:00 = بين 2 و4، 18:00 = بين 4 و6، 20:00 = بين 6 و8، 22:00 = بين 8 و10).</div></div></div></div>'}));
     } else {
       add(sl({tag:tagS,title:"الأوردرات الواردة حسب الفترة الزمنية — "+lab,nav:"الأوردرات الواردة حسب الفترة",body:na("بيانات الفترات (عمود shift) غير متاحة بعد من Control Tower — حدّث Backend.gs بنسخة shift ثم انشر نسخة جديدة وأعد تحديث البيانات.")}));
     }

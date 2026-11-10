@@ -107,7 +107,7 @@ details.card summary{cursor:pointer}
     <label>الشهر<select id="fMonth"></select></label>
     <label>من تاريخ الإضافة<input type="date" id="fFrom"></label>
     <label>إلى تاريخ الإضافة<input type="date" id="fTo"></label>
-    <label>فرع المنطقة<select id="fBranch"></select></label>
+    <label>فرع العضو<select id="fBranch"></select></label>
     <button class="btn ghost" id="reset">إعادة ضبط</button>
   </section>
 
@@ -176,7 +176,7 @@ function prepare(grid){
   H=grid[hi].map(function(x,i){return String(x==null?"":x).trim()||("عمود "+(i+1))});
   C={date:findCol(H,["تاريخالاضافه","تاريخالاضافة"],["تاريخ"]),month:findCol(H,["الشهر"]),code:findCol(H,["رقمالبوليصه"],["بوليص","awb"]),
      sender:findCol(H,["الراسل"]),gov:findCol(H,["المحافظه"]),area:findCol(H,["المنطقه"]),cost:findCol(H,["تكلفهالشحن"],["تكلفه"]),
-     branch:findCol(H,["فرعالمنطقه"],["فرع"]),cod:findCol(H,["مبلغالتحصيل"],["تحصيل"]),status:findCol(H,["حالهالشحنه"],["حالهالشحن"]),
+     branch:(function(){var b=findCol(H,["فرعالعضو"],["فرعالعضو"]);return b>-1?b:findCol(H,["فرعالمنطقه"],["فرع"])})(),cod:findCol(H,["مبلغالتحصيل"],["تحصيل"]),status:findCol(H,["حالهالشحنه"],["حالهالشحن"]),
      rep:findCol(H,["المندوب","اسمالمندوب"],["مندوب"]),final:findCol(H,["الحالهالنهائيه"],["نهائي"]),ptype:findCol(H,["نوعالمشكله"],["نوعالمشكل","المشكل"])};
   ROWS=[];
   for(var j=hi+1;j<grid.length;j++){var r=grid[j];if(!r||!r.some(function(c){return String(c==null?"":c).trim()!==""}))continue;
@@ -323,7 +323,7 @@ function render(){
   else out+='<div class="card"><h2>عدد الأوردرات حسب '+xt+'</h2><div class="empty">عمود «'+xt+'» غير موجود في هذا التاب (الأعمدة: '+esc(H.join("، "))+')</div></div>';
   // 4) الفرع
   if(C.branch>-1)out+=resTable("عدد أوردرات الفرع","اضغط على فرع لتصفية النتائج",["الفرع","عدد الأوردرات","%"],sorted(cnt(function(r){return val(r,"branch")})),n,"branch");
-  else out+='<div class="card"><h2>عدد أوردرات الفرع</h2><div class="empty">عمود فرع المنطقة غير موجود</div></div>';
+  else out+='<div class="card"><h2>عدد أوردرات الفرع</h2><div class="empty">عمود فرع العضو غير موجود</div></div>';
   // 5) المندوب والفرع
   if(C.rep>-1){var bm={};rows.forEach(function(r){var b=String(val(r,"branch")).trim()||"(فارغ)",c=String(val(r,"rep")).trim()||"(فارغ)",k=b+"||"+c;bm[k]=(bm[k]||0)+1});
     var be=Object.keys(bm).map(function(k){var p=k.split("||");return[k,bm[k],[p[0],p[1]]]}).sort(function(a,b){return b[1]-a[1]});

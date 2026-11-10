@@ -116,14 +116,16 @@ function buildNormalizedRecords_(values) {
 }
 
 /**
- * عمود shift = الفترة التي وصلت فيها الحالة داخل الشيفت. نُسمّي الفترة بنهايتها بنظام 24 ساعة:
- *   11–1 → 13   |   1–2 → 14   |   2–4 → 16   |   4–6 → 18   |   6–8 → 20   |   8–10 → 22
- * يقبل نصًا مثل "11-1" أو "11:00 - 1:00" أو "1 إلى 2"، أو رقمًا/وقتًا مثل 13 أو "13:00".
+ * عمود shift = الفترة التي وصلت فيها الحالة داخل الشيفت، وقيمه في الشيت أوقات مثل 12:00 / 13:00 / 14:00 / 16:00 / 17:00 / 18:00 / 20:00 / 22:00 / 23:00.
+ * يقبل "13:00" أو 13 أو خلية وقت، وأيضًا مدى مثل "11-1" (يُسمّى بنهايته: 11–1 → 13، 1–2 → 14، 2–4 → 16، 4–6 → 18، 6–8 → 20، 8–10 → 22).
  * ساعة < 11 تُعتبر مساءً (+12). قيمة غير مفهومة => null (تُستبعد من تقسيم الشيفت وتُعدّ في missing).
  */
 function shiftHour_(v) {
   if (v === '' || v === null || v === undefined) return null;
-  if (Object.prototype.toString.call(v) === '[object Date]') return isNaN(v.getTime()) ? null : v.getHours();
+  if (Object.prototype.toString.call(v) === '[object Date]') {   // خلية وقت: نقرّب لأقرب ساعة (تجنّبًا لفروق دقائق التوقيت في تواريخ 1899)
+    if (isNaN(v.getTime())) return null;
+    return (v.getHours() + (v.getMinutes() >= 30 ? 1 : 0)) % 24;
+  }
   const hrs = []; String(v).replace(/(\d{1,2})(?::\d{2})?/g, (m, h) => { hrs.push(Number(h)); return m; });   // الساعات فقط (بدون الدقائق)
   if (!hrs.length) return null;
   const h = hrs[hrs.length - 1];               // نهاية الفترة
