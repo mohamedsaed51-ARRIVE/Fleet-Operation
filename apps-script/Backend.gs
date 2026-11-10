@@ -145,9 +145,9 @@ function formatTimestamp_(recordId) {
  * (يشير لـ generation واحد) فلا يرى القارئ مجموعة ناقصة أو مخلوطة بين تنفيذين متزامنين.
  * أي قطعة ناقصة/تالفة => نتجاهل الكاش ونقرأ من الشيت. تجاوز السقف => لا كاش (والطلب يعمل عادي).
  */
-const CACHE_META_KEY_ = 'fs_master_values_v3_meta';
-const CACHE_CHUNK_PREFIX_ = 'fs_master_values_v3:';
-const CACHE_CHUNK_CHARS_ = 30000;
+const CACHE_META_KEY_ = 'fs_master_values_v4_meta';
+const CACHE_CHUNK_PREFIX_ = 'fs_master_values_v4:';
+const CACHE_CHUNK_CHARS_ = 90000;   // base64 (ASCII) => 90KB لكل قطعة، تحت حد 100KB
 const CACHE_MAX_CHUNKS_ = 60;
 
 function cacheReplacer_(key, value) {
@@ -177,27 +177,26 @@ function cacheGetValues_(cache) {
     const meta = JSON.parse(metaRaw);
     const keys = cacheChunkKeys_(meta);
     const got = cache.getAll(keys);
-    let s = '';
+    let b64 = '';
     for (let i = 0; i < keys.length; i++) {
       if (typeof got[keys[i]] !== 'string') return null;
-      s += got[keys[i]];
+      b64 += got[keys[i]];
     }
-    if (s.length !== meta.length) return null;
-    return JSON.parse(s, cacheReviver_);
+    if (b64.length !== meta.length) return null;
+    // القيم مضغوطة (gzip) ثم base64 — بدون الضغط كان حجم Master Data أكبر من سقف الكاش فلا يُخزَّن أبدًا ويُعاد قراءة الشيت في كل طلب
+    const json = Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(b64), 'application/x-gzip')).getDataAsString();
+    return JSON.parse(json, cacheReviver_);
   } catch (e) { return null; }   // أي مشكلة => نقرأ من الشيت
 }
 
 function cachePutValues_(cache, values) {
   try {
-    const s = JSON.stringify(values, cacheReplacer_);
+    const json = JSON.stringify(values, cacheReplacer_);
+    const gz = Utilities.gzip(Utilities.newBlob(json, 'application/octet-stream', 'v.json'));
+    const s = Utilities.base64Encode(gz.getBytes());
     const chunks = [];
-    let pos = 0;
-    while (pos < s.length) {
-      let cut = Math.min(pos + CACHE_CHUNK_CHARS_, s.length);
-      const last = s.charCodeAt(cut - 1);
-      if (cut < s.length && last >= 0xD800 && last <= 0xDBFF) cut--;   // لا نقطع زوج surrogate (إيموجي) بين قطعتين
-      chunks.push(s.substring(pos, cut));
-      pos = cut;
+    for (let pos = 0; pos < s.length; pos += CACHE_CHUNK_CHARS_) {
+      chunks.push(s.substring(pos, pos + CACHE_CHUNK_CHARS_));
       if (chunks.length > CACHE_MAX_CHUNKS_) return;                    // أكبر من السقف: لا كاش
     }
     const meta = { gen: Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36), chunks: chunks.length, length: s.length };
