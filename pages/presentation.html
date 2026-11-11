@@ -172,14 +172,15 @@ function frameWin(k){
   return s.own.contentWindow;
 }
 function bridge(k){try{var w=frameWin(k);return w&&w.__deck&&w.__deck.ready()?w.__deck:null}catch(e){return null}}
-function waitReady(ms){
+function waitReady(ms,grace){
+  if(grace==null)grace=5000;
   return new Promise(function(res){
     var t0=Date.now();
     (function tick(){
       var ok={S:!!bridge("S"),V:!!bridge("V"),R:!!bridge("R")};
       var n=(ok.S?1:0)+(ok.V?1:0)+(ok.R?1:0),dt=Date.now()-t0;
-      if(n===3||dt>ms||(n>0&&dt>12000))return res(ok);   // لا ننتظر مصدرًا متعثرًا أكثر من 12 ثانية بعد جاهزية غيره
-      setTimeout(tick,600);
+      if(n===3||dt>=ms||(n>0&&dt>=grace))return res(ok);   // لا ننتظر مصدرًا متعثرًا أكثر من grace بعد جاهزية غيره
+      setTimeout(tick,dt>=ms?0:(ms===0?0:600));
     })();
   });
 }
@@ -650,34 +651,50 @@ function status(){
   var ok={S:!!bridge("S"),V:!!bridge("V"),R:!!bridge("R")},nm={S:"Control Tower",V:"Validation",R:"عدم الإبلاغ"};
   $("st").innerHTML=(filtering()?'<span class="chip" style="background:var(--gold);color:#1b1f3b" title="الفلاتر تنطبق على Validation وعدم الإبلاغ وجداول/رسوم الفروع والموظفين؛ إجماليات Control Tower وأنواع المشاكل والفترات لا تتأثر">فلاتر نشطة</span> ':"")+Object.keys(ok).map(function(k){return'<span class="chip '+(ok[k]?"ok":"bad")+'">'+nm[k]+(ok[k]?"":" — غير متاح")+'</span>'}).join(" ");
 }
-var busy=0,retries=0,retryT=null;
-function refresh(hard){
-  var my=++busy;clearTimeout(retryT);
+var busy=0,retries=0,retryT=null,earlyT=null;
+/* قوائم الشهور: تُملأ فور جاهزية أي مصدر (ولا تنتظر Control Tower البطيء) */
+function fillMonths(){
+  var ms=collectMonths();if(!ms.length)return false;
+  months=ms;
+  if(!sel||months.indexOf(sel)<0)sel=months[months.length-1]||"";
+  $("month").innerHTML=months.map(function(x){return'<option value="'+x+'"'+(x===sel?" selected":"")+'>'+ymLabel(x)+'</option>'}).join("");
+  if(selFrom&&(months.indexOf(selFrom)<0||selFrom>=sel))selFrom="";
+  $("monthFrom").innerHTML='<option value="">شهر واحد (بدون تجميع)</option>'+months.filter(function(x){return x<sel}).map(function(x){return'<option value="'+x+'"'+(x===selFrom?" selected":"")+'>من: '+ymLabel(x)+'</option>'}).join("");
+  return true;
+}
+function earlyMonths(){clearInterval(earlyT);earlyT=setInterval(function(){if(months.length||fillMonths())clearInterval(earlyT)},700)}
+/* quick = تغيير الشهر/الفترة من المستخدم: نبني فورًا بما هو متاح بدل انتظار مصدر بطيء */
+function refresh(hard,quick){
+  var my=++busy;clearTimeout(retryT);earlyMonths();
   if(deck.length<=2){$("msg").style.display="flex";$("msg").textContent="جارٍ قراءة بيانات اللوحات…"}
   if(hard){sCache={};rCache={}}
-  return waitReady(hard?15000:90000).then(function(){
+  return waitReady(quick?0:(hard?60000:90000),quick?0:5000).then(function(){
     if(my!==busy)return;
     status();
-    months=collectMonths();
-    var m=$("month");
-    if(!sel||months.indexOf(sel)<0)sel=months[months.length-1]||"";
-    m.innerHTML=months.map(function(x){return'<option value="'+x+'"'+(x===sel?" selected":"")+'>'+ymLabel(x)+'</option>'}).join("");
-    if(selFrom&&(months.indexOf(selFrom)<0||selFrom>=sel))selFrom="";
-    $("monthFrom").innerHTML='<option value="">شهر واحد (بدون تجميع)</option>'+months.filter(function(x){return x<sel}).map(function(x){return'<option value="'+x+'"'+(x===selFrom?" selected":"")+'>من: '+ymLabel(x)+'</option>'}).join("");
+    fillMonths();
     if(!sel){$("msg").textContent="لا توجد بيانات متاحة من اللوحات بعد. تأكد من اتصال اللوحات ثم اضغط «تحديث البيانات».";return}
     return collect(sel).then(function(o){
       if(my!==busy)return;X=o;build();status();
       // لو مصدر لم يكن جاهزًا بعد: نعيد المحاولة تلقائيًا (حتى 12 مرة) فتكتمل الشرائح فور وصول بياناته
       if(!(bridge("S")&&bridge("V")&&bridge("R"))&&retries++<12)retryT=setTimeout(function(){refresh(false)},8000);
     });
-  });
+  }).catch(function(e){console.error(e);$("msg").style.display="flex";$("msg").textContent="تعذّر بناء العرض: "+(e&&e.message||e)});
+}
+/* تحديث حقيقي: يعيد تحميل اللوحات الثلاث (المصدر) ثم يعيد بناء العرض */
+function reloadSources(){
+  try{var ds=parent!==window&&parent.DASHBOARDS;if(ds){["support","validation","reporting"].forEach(function(id){var d=ds.filter(function(x){return x.id===id})[0];if(d&&d.frame){if(d.panel)d.panel.classList.remove("ready");d.frame.src=d.src}})}}catch(e){}
+  for(var k in SRC){if(SRC[k].own)SRC[k].own.src=SRC[k].file}
 }
 $("prev").onclick=function(){go(idx-1)};
 $("next").onclick=function(){go(idx+1)};
 $("jump").onchange=function(){go(+this.value)};
-$("month").onchange=function(){sel=this.value;refresh(false)};
-$("monthFrom").onchange=function(){selFrom=this.value;refresh(false)};
-$("reload").onclick=function(){retries=0;refresh(true)};
+$("month").onchange=function(){sel=this.value;fillMonths();refresh(false,true)};
+$("monthFrom").onchange=function(){selFrom=this.value;refresh(false,true)};
+$("reload").onclick=function(){
+  var b=$("reload"),old=b.textContent;b.disabled=true;b.textContent="جارٍ التحديث…";
+  retries=0;X=null;months=[];reloadSources();
+  setTimeout(function(){refresh(true).then(function(){b.disabled=false;b.textContent=old},function(){b.disabled=false;b.textContent=old})},1200);
+};
 $("full").onclick=function(){var el=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else if(el.requestFullscreen)el.requestFullscreen()};
 $("print").onclick=function(){window.print()};
 /* ---------- تنزيل PowerPoint (.pptx): كل شريحة تُرسم كصورة عالية الدقة بنفس تصميم العرض ---------- */
