@@ -1595,8 +1595,8 @@ function renderChips() {
 /* ---------- KPIs ---------- */
 function renderKPIs(data) {
   const k = data.kpis, f = state.applied, S = kpiSet(k, f);
-  setHTML('homeKpis', [S.total, S.rate, S.open, S.followup].map(kpiHTML).join(''));
-  setHTML('dashKpis', [S.total, S.solved, S.followup, S.open, S.rate, S.branches, S.employees, S.accounts].map(kpiHTML).join(''));
+  setHTML('homeKpis', [S.total, S.rate, S.open].map(kpiHTML).join(''));
+  setHTML('dashKpis', [S.total, S.solved, S.open, S.rate, S.branches, S.employees, S.accounts].map(kpiHTML).join(''));
   const meta = '<span><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> الفترة: ' + periodText(periodOf(lastDaily, f)) + '</span><span><i class="fa-solid fa-database" aria-hidden="true"></i> عدد السجلات: ' + N(fInt(k.total)) + '</span>';
   setHTML('homeMeta', meta); setHTML('dashMeta', meta);
 }
@@ -2039,7 +2039,7 @@ function buildReportDoc(b, f) {
   } else {
     body += '<div class="rp-callout">خلال الفترة ' + periodHtml + ' سُجّلت ' + N(fInt(k.total)) + ' حالة، تم حل ' + N(fInt(k.solved)) + ' منها بنسبة ' + N(fPct(k.resolutionRatePct)) + '. ' +
       'يوجد ' + N(fInt(k.open)) + ' حالة لم يتم حلها و' + N(fInt(k.followup)) + ' قيد المتابعة، و' + N(fInt(low.length)) + ' فرع نسبة الحل فيه أقل من ' + ATTENTION_PCT + '%.</div>';
-    body += '<div class="rp-kpis">' + [S.total, S.rate, S.open, S.followup].map(kpiHTML).join('') + '</div>';
+    body += '<div class="rp-kpis">' + [S.total, S.rate, S.open].map(kpiHTML).join('') + '</div>';
     body += '<div class="rp-kpis">' + [S.solved, S.branches, S.employees, S.accounts].map(kpiHTML).join('') + '</div>';
     const hl = highlightItems({ byBranch: b.byBranch, byProblemType: b.byProblemType, byAccount: b.byAccount, byEmployee: b.byEmployee });
     body += '<div class="rp-sub">أبرز النتائج</div>' + staticTable([{ key: 'q', type: 'name', label: 'المؤشر' }, { key: 'a', type: 'text', label: 'النتيجة', render: r => r.a }], hl.map(h => ({ q: h[1], a: h[2] })));

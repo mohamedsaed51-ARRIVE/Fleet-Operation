@@ -172,14 +172,15 @@ function frameWin(k){
   return s.own.contentWindow;
 }
 function bridge(k){try{var w=frameWin(k);return w&&w.__deck&&w.__deck.ready()?w.__deck:null}catch(e){return null}}
-function waitReady(ms){
+function waitReady(ms,grace){
+  if(grace==null)grace=5000;
   return new Promise(function(res){
     var t0=Date.now();
     (function tick(){
       var ok={S:!!bridge("S"),V:!!bridge("V"),R:!!bridge("R")};
       var n=(ok.S?1:0)+(ok.V?1:0)+(ok.R?1:0),dt=Date.now()-t0;
-      if(n===3||dt>ms||(n>0&&dt>12000))return res(ok);   // لا ننتظر مصدرًا متعثرًا أكثر من 12 ثانية بعد جاهزية غيره
-      setTimeout(tick,600);
+      if(n===3||dt>=ms||(n>0&&dt>=grace))return res(ok);   // لا ننتظر مصدرًا متعثرًا أكثر من grace بعد جاهزية غيره
+      setTimeout(tick,dt>=ms?0:(ms===0?0:600));
     })();
   });
 }
@@ -377,7 +378,7 @@ function slides(X){
         '<div class="col" style="width:300px">'+(shPk.length?kb(esc(shPk.map(function(r){return r.label}).join(" و ")),"فترة الضغط — "+f(shPk[0].total)+" حالة ("+pc(shPk[0].total,shT)+")","","navy"):"")+
         '<div class="box fill"><h4>طريقة الحساب</h4><div class="note">كل حالة تُنسب إلى الفترة المسجَّلة في عمود shift (مثل 13:00 = وصلت بين 11 و1، 14:00 = بين 1 و2، 16:00 = بين 2 و4، 18:00 = بين 4 و6، 20:00 = بين 6 و8، 22:00 = بين 8 و10).</div></div></div></div>'}));
     } else {
-      add(sl({tag:tagS,title:"الأوردرات الواردة حسب الفترة الزمنية — "+lab,nav:"الأوردرات الواردة حسب الفترة",body:na("بيانات الفترات (عمود shift) غير متاحة بعد من Control Tower — حدّث Backend.gs بنسخة shift ثم انشر نسخة جديدة وأعد تحديث البيانات.")}));
+      add(sl({tag:tagS,title:"الأوردرات الواردة حسب الفترة الزمنية — "+lab,nav:"الأوردرات الواردة حسب الفترة",body:(cur.periods&&cur.periods.shift?na("لا توجد قيم في عمود shift لهذه الفترة في Master Data (الأوردرات بدون shift لا تُحتسب). جرّب شهرًا آخر أو راجع تعبئة العمود."):na("بيانات الفترات (عمود shift) غير متاحة بعد من Control Tower — حدّث Backend.gs بنسخة shift ثم انشر نسخة جديدة وأعد تحديث البيانات."))}));
     }
 
     /* 6) الفروع المرسِلة في كل فترة */
@@ -533,7 +534,7 @@ function slides(X){
       var bestE=er2.slice().filter(function(x){return x.res+x.nor>0}).sort(function(a,b){return b.res/(b.res+b.nor)-a.res/(a.res+a.nor)})[0];
       add(sl({tag:"مشاكل تسليم — مراجعة",title:"نسبة الرد وعدم الرد — "+pn+" (عدد الأوردرات "+f(dS.tot)+")",nav:"نسبة الرد لكل موظفة — تسليم",body:
         '<div class="lg" style="justify-content:flex-start;margin:0 0 8px"><span><i style="background:var(--teal)"></i>تم الرد '+f(dS.res)+'</span><span><i style="background:var(--red)"></i>لم يتم الرد '+f(dS.nor)+'</span></div>'+
-        er2.slice(0,12).map(function(e){return'<div class="hr" style="margin-bottom:7px"><div class="hl" style="width:150px">'+esc(e.n)+'</div><div class="hl" style="width:60px;text-align:center;font-weight:400">'+f(e.tot)+'</div>'+stacked(e.res,e.nor,"var(--teal)","var(--red)")+'</div>'}).join("")+
+        er2.map(function(e){return'<div class="hr" style="margin-bottom:'+(er2.length>12?3:7)+'px"><div class="hl" style="width:150px">'+esc(e.n)+'</div><div class="hl" style="width:60px;text-align:center;font-weight:400">'+f(e.tot)+'</div>'+stacked(e.res,e.nor,"var(--teal)","var(--red)")+'</div>'}).join("")+
         '<div class="hr"><div class="hl" style="width:150px">الإجمالي</div><div class="hl" style="width:60px;text-align:center">'+f(dS.tot)+'</div>'+stacked(dS.res,dS.nor,"var(--teal)","var(--red)")+'</div>'+
         (bestE?'<div class="kb gold" style="margin-top:8px;padding:6px;flex-direction:row;gap:12px;justify-content:center"><span class="l">أعلى موظفة هذا الشهر: '+esc(bestE.n)+" — نسبة الرد "+pc(bestE.res,bestE.res+bestE.nor)+" ("+f(bestE.res)+" من "+f(bestE.tot)+" أوردر)</span></div>":"")}));
       /* 22) نتائج الرد حسب الفرع */
@@ -650,34 +651,50 @@ function status(){
   var ok={S:!!bridge("S"),V:!!bridge("V"),R:!!bridge("R")},nm={S:"Control Tower",V:"Validation",R:"عدم الإبلاغ"};
   $("st").innerHTML=(filtering()?'<span class="chip" style="background:var(--gold);color:#1b1f3b" title="الفلاتر تنطبق على Validation وعدم الإبلاغ وجداول/رسوم الفروع والموظفين؛ إجماليات Control Tower وأنواع المشاكل والفترات لا تتأثر">فلاتر نشطة</span> ':"")+Object.keys(ok).map(function(k){return'<span class="chip '+(ok[k]?"ok":"bad")+'">'+nm[k]+(ok[k]?"":" — غير متاح")+'</span>'}).join(" ");
 }
-var busy=0,retries=0,retryT=null;
-function refresh(hard){
-  var my=++busy;clearTimeout(retryT);
+var busy=0,retries=0,retryT=null,earlyT=null;
+/* قوائم الشهور: تُملأ فور جاهزية أي مصدر (ولا تنتظر Control Tower البطيء) */
+function fillMonths(){
+  var ms=collectMonths();if(!ms.length)return false;
+  months=ms;
+  if(!sel||months.indexOf(sel)<0)sel=months[months.length-1]||"";
+  $("month").innerHTML=months.map(function(x){return'<option value="'+x+'"'+(x===sel?" selected":"")+'>'+ymLabel(x)+'</option>'}).join("");
+  if(selFrom&&(months.indexOf(selFrom)<0||selFrom>=sel))selFrom="";
+  $("monthFrom").innerHTML='<option value="">شهر واحد (بدون تجميع)</option>'+months.filter(function(x){return x<sel}).map(function(x){return'<option value="'+x+'"'+(x===selFrom?" selected":"")+'>من: '+ymLabel(x)+'</option>'}).join("");
+  return true;
+}
+function earlyMonths(){clearInterval(earlyT);earlyT=setInterval(function(){if(months.length||fillMonths())clearInterval(earlyT)},700)}
+/* quick = تغيير الشهر/الفترة من المستخدم: نبني فورًا بما هو متاح بدل انتظار مصدر بطيء */
+function refresh(hard,quick){
+  var my=++busy;clearTimeout(retryT);earlyMonths();
   if(deck.length<=2){$("msg").style.display="flex";$("msg").textContent="جارٍ قراءة بيانات اللوحات…"}
   if(hard){sCache={};rCache={}}
-  return waitReady(hard?15000:90000).then(function(){
+  return waitReady(quick?0:(hard?60000:90000),quick?0:5000).then(function(){
     if(my!==busy)return;
     status();
-    months=collectMonths();
-    var m=$("month");
-    if(!sel||months.indexOf(sel)<0)sel=months[months.length-1]||"";
-    m.innerHTML=months.map(function(x){return'<option value="'+x+'"'+(x===sel?" selected":"")+'>'+ymLabel(x)+'</option>'}).join("");
-    if(selFrom&&(months.indexOf(selFrom)<0||selFrom>=sel))selFrom="";
-    $("monthFrom").innerHTML='<option value="">شهر واحد (بدون تجميع)</option>'+months.filter(function(x){return x<sel}).map(function(x){return'<option value="'+x+'"'+(x===selFrom?" selected":"")+'>من: '+ymLabel(x)+'</option>'}).join("");
+    fillMonths();
     if(!sel){$("msg").textContent="لا توجد بيانات متاحة من اللوحات بعد. تأكد من اتصال اللوحات ثم اضغط «تحديث البيانات».";return}
     return collect(sel).then(function(o){
       if(my!==busy)return;X=o;build();status();
       // لو مصدر لم يكن جاهزًا بعد: نعيد المحاولة تلقائيًا (حتى 12 مرة) فتكتمل الشرائح فور وصول بياناته
       if(!(bridge("S")&&bridge("V")&&bridge("R"))&&retries++<12)retryT=setTimeout(function(){refresh(false)},8000);
     });
-  });
+  }).catch(function(e){console.error(e);$("msg").style.display="flex";$("msg").textContent="تعذّر بناء العرض: "+(e&&e.message||e)});
+}
+/* تحديث حقيقي: يعيد تحميل اللوحات الثلاث (المصدر) ثم يعيد بناء العرض */
+function reloadSources(){
+  try{var ds=parent!==window&&parent.DASHBOARDS;if(ds){["support","validation","reporting"].forEach(function(id){var d=ds.filter(function(x){return x.id===id})[0];if(d&&d.frame){if(d.panel)d.panel.classList.remove("ready");d.frame.src=d.src}})}}catch(e){}
+  for(var k in SRC){if(SRC[k].own)SRC[k].own.src=SRC[k].file}
 }
 $("prev").onclick=function(){go(idx-1)};
 $("next").onclick=function(){go(idx+1)};
 $("jump").onchange=function(){go(+this.value)};
-$("month").onchange=function(){sel=this.value;refresh(false)};
-$("monthFrom").onchange=function(){selFrom=this.value;refresh(false)};
-$("reload").onclick=function(){retries=0;refresh(true)};
+$("month").onchange=function(){sel=this.value;fillMonths();refresh(false,true)};
+$("monthFrom").onchange=function(){selFrom=this.value;refresh(false,true)};
+$("reload").onclick=function(){
+  var b=$("reload"),old=b.textContent;b.disabled=true;b.textContent="جارٍ التحديث…";
+  retries=0;X=null;months=[];reloadSources();
+  setTimeout(function(){refresh(true).then(function(){b.disabled=false;b.textContent=old},function(){b.disabled=false;b.textContent=old})},1200);
+};
 $("full").onclick=function(){var el=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else if(el.requestFullscreen)el.requestFullscreen()};
 $("print").onclick=function(){window.print()};
 /* ---------- تنزيل PowerPoint (.pptx): كل شريحة تُرسم كصورة عالية الدقة بنفس تصميم العرض ---------- */

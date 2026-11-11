@@ -76,7 +76,7 @@ function buildNormalizedRecords_(values) {
     if (rawDate && !parsedDate) invalidDateCount++;
 
     const status = cleanString_(row[C.STATUS - 1]);
-    const entryDate = parseDateValue_(row[C.RECORD_ID - 1]);   // وقت تسجيل الحالة (Record ID) — يُستخدم لفترات اليوم فقط
+    const entryDate = recordIdDate_(row[C.RECORD_ID - 1]);   // وقت تسجيل الحالة (Record ID) — يُستخدم لفترات اليوم فقط
     const driver = cleanString_(row[C.DRIVER - 1]);
     const recordId = row[C.RECORD_ID - 1] || null;
 
@@ -116,6 +116,22 @@ function buildNormalizedRecords_(values) {
 }
 
 /**
+ * وقت تسجيل الحالة من Record ID. القيمة في الشيت نص بصيغة REC-1786355562334-30669 (الرقم الأول = وقت بالمللي ثانية)،
+ * وهذا النص لا يقرؤه parseDateValue_ كتاريخ، فكانت فترات اليوم والساعات فارغة. نقرأ الوقت من الرقم، وإلا نرجع للقراءة العادية.
+ */
+function recordIdDate_(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  if (typeof v === 'string') {
+    const m = v.match(/REC-(\d{10,13})/i);
+    if (m) {
+      const n = Number(m[1]), d = new Date(m[1].length <= 10 ? n * 1000 : n);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  return parseDateValue_(v);
+}
+
+/**
  * عمود shift = الفترة التي وصلت فيها الحالة داخل الشيفت، وقيمه في الشيت أوقات مثل 12:00 / 13:00 / 14:00 / 16:00 / 17:00 / 18:00 / 20:00 / 22:00 / 23:00.
  * يقبل "13:00" أو 13 أو خلية وقت، وأيضًا مدى مثل "11-1" (يُسمّى بنهايته: 11–1 → 13، 1–2 → 14، 2–4 → 16، 4–6 → 18، 6–8 → 20، 8–10 → 22).
  * ساعة < 11 تُعتبر مساءً (+12). قيمة غير مفهومة => null (تُستبعد من تقسيم الشيفت وتُعدّ في missing).
@@ -134,7 +150,7 @@ function shiftHour_(v) {
 }
 
 function formatTimestamp_(recordId) {
-  const d = parseDateValue_(recordId);
+  const d = recordIdDate_(recordId);
   if (!d) return cleanString_(recordId);
   return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
 }
