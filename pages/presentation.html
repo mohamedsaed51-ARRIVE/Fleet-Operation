@@ -97,7 +97,7 @@ table.tb td{padding:5px 8px;border:1px solid var(--line);text-align:center}
 table.tb td:first-child{text-align:right;font-weight:600}
 table.tb tbody tr:nth-child(even){background:var(--soft)}
 table.tb tr.tot td{background:var(--line);font-weight:800}
-table.tb.sm{font-size:12.5px} table.tb.sm td{padding:3px 6px} table.tb.sm th{padding:5px 6px}
+table.tb tr.hl td{background:#FFF4D6} table.tb.sm{font-size:12.5px} table.tb.sm td{padding:3px 6px} table.tb.sm th{padding:5px 6px}
 .red{color:var(--red);font-weight:700}
 /* ---------- حالة عدم توفر بيانات ---------- */
 .na{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:20px;text-align:center;border:2px dashed var(--line);border-radius:8px;padding:30px}
@@ -204,12 +204,16 @@ function loadReporting(){
   var norm=function(s){return String(s||"").replace(/[\s_\-]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").toLowerCase()};
   var tabs=b.tabs();
   var pick=function(key,pref){var l=tabs.filter(function(t){return norm(t.name).indexOf(key)>-1});return (pref&&l.filter(function(t){return norm(t.name).indexOf(pref)>-1})[0])||l[0]};
-  var jobs={rep:pick("عدمالابلاغ"),img:pick("عدمارسال","تمتبليغ")};
-  return Promise.all(["rep","img"].map(function(k){
-    var t=jobs[k];if(!t)return null;
+  var imgs=tabs.filter(function(t){var n=norm(t.name);return n.indexOf("عدمارسال")>-1&&n.indexOf("بالحالات")<0&&n.indexOf("مرتجع")<0});
+  var isSent=function(t){return norm(t.name).indexOf("تمتبليغ")>-1};
+  var load=function(t){
+    if(!t)return null;
     if(rCache[t.gid])return rCache[t.gid];
     return rCache[t.gid]=b.load(t).then(function(x){x.tabName=t.name;return x}).catch(function(){delete rCache[t.gid];return null});
-  })).then(function(r){return{rep:r[0],img:r[1]}});
+  };
+  // لم يُرسل = تاب «عدم ارسال صور» وحده؛ المفترض إرساله = تاب «تم تبليغ»
+  var notSent=imgs.filter(function(t){return !isSent(t)})[0],sent=imgs.filter(isSent)[0];
+  return Promise.all([load(pick("عدمالابلاغ")),load(notSent),load(sent)]).then(function(r){return{rep:r[0],img:r[1],exp:r[2]}});
 }
 function monthsBetween(a,b){var out=[],y=+a.slice(0,4),m=+a.slice(5),ey=+b.slice(0,4),em=+b.slice(5);while(y<ey||(y===ey&&m<=em)){out.push(y+"-"+("0"+m).slice(-2));m++;if(m>12){m=1;y++}}return out}
 function supportRange(a,b){
@@ -482,17 +486,31 @@ function slides(X){
     }
     var ir=rptRows(X.R.img,set);
     if(ir){
-      var ni=ir.length;
-      var byDay={};ir.forEach(function(r){if(r.date){var k=r.date.getDate();byDay[k]=(byDay[k]||0)+1}});
-      var days=Object.keys(byDay).map(Number).sort(function(a,b){return a-b});
-      add(sl({tag:"ثانيًا: تقرير عدم إرسال صورة المرتجع — "+pn,title:"عدم إرسال صورة المرتجع مع الحالة على جروب الواتساب",nav:"عدم إرسال صورة المرتجع",body:
-        '<div class="row" style="height:100%"><div class="fill">'+(days.length?'<div style="height:400px">'+vbars(days.map(function(d){return d+"/"+ym.slice(5)}),[{vals:days.map(function(d){return byDay[d]}),color:"var(--red)"}]).replace(/<div class="vl">/g,'<div class="vl" style="font-size:10px">')+'</div>':na("لا توجد تواريخ صالحة في سجلات التاب"))+'</div>'+
-        '<div class="col" style="width:340px">'+kb(f(ni),"حالة أُبلغت دون إرفاق صورة المرتجع المطلوبة في "+pn,"","red")+'<div class="box"><h4>ملاحظة</h4><div class="note">العدد من تاب «عدم إرسال صورة». نسبته من إجمالي الحالات التي طُلبت فيها الصورة غير متاحة في اللوحات (تحتاج مصدر الحالات المطلوبة).</div></div></div></div>'}));
+      var ni=ir.length,er=rptRows(X.R.exp,set),ne=er?er.length:null;
+      var pI=prevYM?rptRows(X.R.img,prevYM):null,pE=prevYM&&X.R.exp?rptRows(X.R.exp,prevYM):null;
+      var hd2=function(m){return'<th colspan="2">'+m+'</th>'};
+      // الجدول: الأعمدة بترتيب الشهر السابق ثم الحالي كما في التقرير المرجعي
+      var cmp=ne!=null?
+        '<table class="tb"><thead><tr><th rowspan="2">البيان</th>'+(prevYM?hd2(ymName(prevYM)):"")+hd2(pn)+'</tr><tr>'+(prevYM?'<th>العدد</th><th>النسبة</th>':"")+'<th>العدد</th><th>النسبة</th></tr></thead><tbody>'+
+        cmpRow("المفترض إرسال حالاتها",ne,ne,pE&&pE.length,pE&&pE.length)+
+        cmpRow("تم إرسال صور المرتجع",ne-ni,ne,pE&&pI?pE.length-pI.length:null,pE&&pE.length)+
+        cmpRow("لم يتم إرسال صور المرتجع",ni,ne,pI&&pI.length,pE&&pE.length,1)+'</tbody></table>':
+        na("المفترض إرسال حالاتها غير متاح (تاب «تم تبليغ»)");
+      function cmpRow(l,a,ta,b,tb,hl){return'<tr'+(hl?' class="hl"':"")+'><td>'+l+'</td>'+(prevYM?'<td>'+(b==null?"—":f(b))+'</td><td>'+(b==null?"—":pc(b,tb))+'</td>':"")+'<td>'+f(a)+'</td><td>'+pc(a,ta)+'</td></tr>'}
+      var tp=topCount(ir,function(r){return rv(X.R.img,r,"ptype")||rv(X.R.img,r,"final")},9);
+      var tpT=tp.length?'<table class="tb sm"><thead><tr><th>نوع المشكلة</th><th>العدد</th><th>النسبة</th></tr></thead><tbody>'+tp.map(function(x){return'<tr><td>'+esc(x[0])+'</td><td>'+f(x[1])+'</td><td>'+pc(x[1],ni)+'</td></tr>'}).join("")+'<tr class="tot"><td>الإجمالي</td><td>'+f(ni)+'</td><td>100%</td></tr></tbody></table>':"";
+      add(sl({tag:pn+" — Control Tower",title:"صور المرتجع"+(prevYM?": "+ymName(prevYM)+" و"+pn:" — "+pn),nav:"عدم إرسال صورة المرتجع",body:
+        '<div class="row" style="height:100%"><div class="fill"><div class="note" style="font-weight:800;margin-bottom:8px">مقارنة '+(prevYM?ymName(prevYM)+" و":"")+pn+'</div>'+cmp+'</div>'+
+        (tpT?'<div class="fill"><div class="note" style="font-weight:800;margin-bottom:8px">تفصيل '+pn+': غير المرسل ('+f(ni)+')</div>'+tpT+'</div>':"")+'</div>'}));
       if(ni){
-        var ib=topCount(ir,function(r){return rv(X.R.img,r,"branch")},7),id=topCount(ir,function(r){return rv(X.R.img,r,"rep")+" — "+rv(X.R.img,r,"branch")},5);
-        add(sl({tag:"تقرير عدم إرسال صورة المرتجع — "+pn,title:"أكثر فروع ومناديب عدم إرسال صورة مرتجع",nav:"أكثر الفروع والمناديب — صور المرتجع",body:
-          '<div class="row" style="height:100%"><div class="fill">'+hbars(ib.map(function(x){return{l:x[0],v:x[1],t:f(x[1])+" ("+pc(x[1],ni)+")",c:"var(--red)"}}))+'</div>'+
-          '<div class="box pink" style="width:430px"><h4>أكثر 5 مناديب تكرارًا</h4>'+id.map(function(x){return'<div class="box" style="margin-bottom:8px;background:#fff;padding:8px 12px;font-size:14px"><b>'+esc(x[0].split(" — ")[0])+'</b><br><span class="note">فرع '+esc(x[0].split(" — ").slice(1).join(" — "))+" — "+f(x[1])+" حالة ("+pc(x[1],ni)+')</span></div>'}).join("")+'</div></div>'}));
+        var ib=topCount(ir,function(r){return rv(X.R.img,r,"branch")},8);
+        var mk=function(n){return topCount(ir,function(r){return rv(X.R.img,r,"rep")+" — "+rv(X.R.img,r,"branch")},n)};
+        var reps=mk(8);
+        add(sl({tag:pn+" — Control Tower",title:"أكثر فروع ومناديب عدم إرسال صورة مرتجع",nav:"أكثر الفروع والمناديب — صور المرتجع",body:
+          '<div class="row" style="height:100%"><div class="fill"><div class="note" style="font-weight:800;margin-bottom:8px">أكبر المناديب</div><table class="tb sm"><thead><tr><th>المندوب</th><th>الفرع</th><th>الأوردرات</th><th>النسبة</th></tr></thead><tbody>'+
+          reps.map(function(x){var a=x[0].split(" — ");return'<tr><td>'+esc(a[0])+'</td><td>'+esc(a.slice(1).join(" — "))+'</td><td>'+f(x[1])+'</td><td>'+pc(x[1],ni)+'</td></tr>'}).join("")+'</tbody></table></div>'+
+          '<div class="fill"><div class="note" style="font-weight:800;margin-bottom:8px">أكبر الفروع</div><table class="tb sm"><thead><tr><th>الفرع</th><th>الأوردرات</th><th>النسبة</th></tr></thead><tbody>'+
+          ib.map(function(x){return'<tr><td>'+esc(x[0])+'</td><td>'+f(x[1])+'</td><td>'+pc(x[1],ni)+'</td></tr>'}).join("")+'</tbody></table></div></div>'}));
       }
     }
   }
