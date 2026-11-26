@@ -204,12 +204,26 @@ function loadReporting(){
   var norm=function(s){return String(s||"").replace(/[\s_\-]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").toLowerCase()};
   var tabs=b.tabs();
   var pick=function(key,pref){var l=tabs.filter(function(t){return norm(t.name).indexOf(key)>-1});return (pref&&l.filter(function(t){return norm(t.name).indexOf(pref)>-1})[0])||l[0]};
-  var jobs={rep:pick("عدمالابلاغ"),img:pick("عدمارسال","تمتبليغ")};
-  return Promise.all(["rep","img"].map(function(k){
-    var t=jobs[k];if(!t)return null;
+  var imgTabs=tabs.filter(function(t){var n=norm(t.name);return n.indexOf("عدمارسال")>-1&&n.indexOf("بالحالات")<0&&n.indexOf("مرتجع")<0});
+  var load=function(t){
     if(rCache[t.gid])return rCache[t.gid];
     return rCache[t.gid]=b.load(t).then(function(x){x.tabName=t.name;return x}).catch(function(){delete rCache[t.gid];return null});
-  })).then(function(r){return{rep:r[0],img:r[1]}});
+  };
+  var repTab=pick("عدمالابلاغ");
+  // عدم إرسال الصورة = «عدم ارسال صور» + «تم تبليغ…» معًا (دمج التابات بنفس الأعمدة، مع حذف التكرار)
+  var imgP=Promise.all(imgTabs.map(load)).then(function(ts){
+    ts=ts.filter(Boolean);if(!ts.length)return null;if(ts.length===1)return ts[0];
+    var base=ts[0],keys=Object.keys(base.C),seen={},rows=[];
+    ts.forEach(function(t){t.ROWS.forEach(function(r){
+      var v=base.H.map(function(){return""});
+      keys.forEach(function(k){if(base.C[k]>-1&&t.C[k]>-1)v[base.C[k]]=r.v[t.C[k]]});
+      var c=base.C.code>-1?String(v[base.C.code]).trim():"";
+      if(c){var key=c+"|"+(r.date?r.date.getTime():r.month);if(seen[key])return;seen[key]=1}
+      rows.push({v:v,date:r.date,month:r.month});
+    })});
+    return{H:base.H,C:base.C,ROWS:rows,tabName:ts.map(function(t){return t.tabName}).join(" + ")};
+  });
+  return Promise.all([repTab?load(repTab):null,imgP]).then(function(r){return{rep:r[0],img:r[1]}});
 }
 function monthsBetween(a,b){var out=[],y=+a.slice(0,4),m=+a.slice(5),ey=+b.slice(0,4),em=+b.slice(5);while(y<ey||(y===ey&&m<=em)){out.push(y+"-"+("0"+m).slice(-2));m++;if(m>12){m=1;y++}}return out}
 function supportRange(a,b){
@@ -487,7 +501,7 @@ function slides(X){
       var days=Object.keys(byDay).map(Number).sort(function(a,b){return a-b});
       add(sl({tag:"ثانيًا: تقرير عدم إرسال صورة المرتجع — "+pn,title:"عدم إرسال صورة المرتجع مع الحالة على جروب الواتساب",nav:"عدم إرسال صورة المرتجع",body:
         '<div class="row" style="height:100%"><div class="fill">'+(days.length?'<div style="height:400px">'+vbars(days.map(function(d){return d+"/"+ym.slice(5)}),[{vals:days.map(function(d){return byDay[d]}),color:"var(--red)"}]).replace(/<div class="vl">/g,'<div class="vl" style="font-size:10px">')+'</div>':na("لا توجد تواريخ صالحة في سجلات التاب"))+'</div>'+
-        '<div class="col" style="width:340px">'+kb(f(ni),"حالة أُبلغت دون إرفاق صورة المرتجع المطلوبة في "+pn,"","red")+'<div class="box"><h4>ملاحظة</h4><div class="note">العدد من تاب «عدم إرسال صورة». نسبته من إجمالي الحالات التي طُلبت فيها الصورة غير متاحة في اللوحات (تحتاج مصدر الحالات المطلوبة).</div></div></div></div>'}));
+        '<div class="col" style="width:340px">'+kb(f(ni),"حالة أُبلغت دون إرفاق صورة المرتجع المطلوبة في "+pn,"","red")+'<div class="box"><h4>ملاحظة</h4><div class="note">العدد من تابي «عدم إرسال صورة» و«تم تبليغ» معًا. نسبته من إجمالي الحالات التي طُلبت فيها الصورة غير متاحة في اللوحات (تحتاج مصدر الحالات المطلوبة).</div></div></div></div>'}));
       if(ni){
         var ib=topCount(ir,function(r){return rv(X.R.img,r,"branch")},7),id=topCount(ir,function(r){return rv(X.R.img,r,"rep")+" — "+rv(X.R.img,r,"branch")},5);
         add(sl({tag:"تقرير عدم إرسال صورة المرتجع — "+pn,title:"أكثر فروع ومناديب عدم إرسال صورة مرتجع",nav:"أكثر الفروع والمناديب — صور المرتجع",body:
